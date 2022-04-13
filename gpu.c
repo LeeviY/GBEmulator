@@ -34,7 +34,7 @@ sfRenderWindow* window;
 
 void drawWindow()
 {
-	printf("WINDOW DRAW\n\n");
+	//printf("WINDOW DRAW\n\n");
 
 	sfIntRect rect = { 160, 144 };
 	sfSprite* sprite = sfSprite_create();

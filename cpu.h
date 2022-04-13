@@ -1,24 +1,27 @@
 #pragma once
 
 #define FZ 0x80
-#define FC 0x10
 #define FN 0x40
 #define FH 0x20
+#define FC 0x10
 
 #define ISFZ (reg.F & FZ)
-#define ISFC (reg.F & FC)
 #define ISFN (reg.F & FN)
 #define ISFH (reg.F & FH)
+#define ISFC (reg.F & FC)
 
 #define SETFZ(x) (reg.F = reg.F & ~(FZ) | (x << 7))
-#define SETFC(x) (reg.F = reg.F & ~(FC) | (x << 6))
-#define SETFN(x) (reg.F = reg.F & ~(FN) | (x << 5))
-#define SETFH(x) (reg.F = reg.F & ~(FH) | (x << 4))
+#define SETFN(x) (reg.F = reg.F & ~(FN) | (x << 6))
+#define SETFH(x) (reg.F = reg.F & ~(FH) | (x << 5))
+#define SETFC(x) (reg.F = reg.F & ~(FC) | (x << 4))
 
 #define FLAGISSET(x) (reg.F & (x))
 #define FLAGSET(x) (reg.F |= (x))
 #define FLAGCLEAR(x) (reg.F &= ~(x))
 #define FLAGEMPTY() (reg.F = 0)
+
+#define printbits_n(x,n) for (int i=n;i;i--,putchar('0'|(x>>i)&1))
+#define printbits_8(x) printbits_n(x,8)
 
 #include <stdlib.h>
 #include <stdint.h>

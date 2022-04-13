@@ -119,6 +119,7 @@ void initCPU()
 	//opcodeTable.unPrefixed[2][0][0] = &opcodeTable.alu; opcodeTable.alu[7] = &CP;
 
 	loadRom("Pokemon_Red.gb");
+	//loadRom("cpu_instrs.gb");
 }
 
 void resetCPU()
@@ -142,12 +143,19 @@ void step()
 	// Get opcode
 	parseOpCode(&opcode, op);
 	
+	//printf("0x%02x 0x%02x %-24s %03d pre=%d ", reg.PC-1, op, opNames[op], op, cpu.prefix);	
 
-	//printf("0x%-2x 0x%02x %-24s %3d pre=%d x=%d z=%d y=%d q=%d p=%d", reg.PC-1, op, opNames[op], op, cpu.prefix, opcode.x, opcode.z, opcode.y, opcode.q, opcode.p);	
+	//printf("x=%d z=%d y=%d q=%d p=%d ", opcode.x, opcode.z, opcode.y, opcode.q, opcode.p);
+	//printbits_8(reg.F);
+	//printf(" A=%02x F=%02b B=%02x C=%02x D=%02x E=%02x H=%02x L=%02x (HL)=%02x PC=%02x SP=%02x  (SP)=%02x\n", reg.A, reg.F, reg.B, reg.C, reg.D, reg.E, reg.H, reg.L, rb(reg.HL), reg.PC, reg.SP, rb(reg.SP));
 
-	//printf(" A=%x F=%x B=%x C=%x D=%x E=%x H=%x L=%x PC=%x SP=%x (HL)=%x (SP)=%x\n", reg.A, reg.F, reg.B, reg.C, reg.D, reg.E, reg.H, reg.L, reg.PC, reg.SP, rb(reg.HL), rb(reg.SP));
+	if (reg.PC - 1 == 0xF4)
+		NOP();
 
-	if (reg.C == 0x0 && reg.PC-1 > 0x60 && reg.PC-1 < 0x73)
+	if (reg.PC - 1 == 0xE0)
+		NOP();
+
+	if (reg.PC - 1 == 0xE6)
 		NOP();
 
 	// Check if last operation was 0xCB/prefix
@@ -257,7 +265,7 @@ void INC_rp()
 
 void INC()
 {
-	SETFN(1);
+	SETFN(0);
 	SETFH((*reg.r[opcode.y] & 0x0F) == 0x0F);
 	
 	(*reg.r[opcode.y])++;
@@ -265,13 +273,12 @@ void INC()
 }
 
 void DEC()
-{
-	Byte val = *reg.r[opcode.y];
-	
+{	
 	SETFN(1);
-	SETFH(!(val & 0x0F));
-	val = --(*reg.r[opcode.y]);
-	SETFZ(!val);
+	SETFH(!(*reg.r[opcode.y] & 0x0F));
+
+	(*reg.r[opcode.y])--;
+	SETFZ(!*reg.r[opcode.y]);
 }
 
 void LD_n()
@@ -299,13 +306,13 @@ void RLA()
 {
 	int carry = ISFC ? 1 : 0;
 	
+	SETFZ(0);
 	SETFN(0);
 	SETFH(0);
 	SETFC(!!(reg.A & 0x80));
 
 	reg.A <<= 1;
 	reg.A += carry;
-	SETFZ(!reg.A);
 }
 
 // x == 1
@@ -322,7 +329,7 @@ void ADD()
 	unsigned int result = reg.A + *reg.r[opcode.z];
 	reg.A = (unsigned char)(result & 0xFF);
 
-	SETFZ(!!reg.A);
+	SETFZ(!reg.A);
 	SETFN(0);
 	SETFH(((reg.A & 0x0F) + (*reg.r[opcode.z] & 0x0F)) > 0x0F);
 	SETFC(!!(result & 0xFF00));
@@ -333,7 +340,7 @@ void ADD_HL()
 	unsigned int result = reg.A + rb(reg.HL);
 	reg.A = (unsigned char)(result & 0xFF);
 
-	SETFZ(!!reg.A);
+	SETFZ(!reg.A);
 	SETFN(0);
 	SETFH(((reg.A & 0x0F) + (rb(reg.HL) & 0x0F)) > 0x0F);
 	SETFC(!!(result & 0xFF00));
@@ -533,6 +540,7 @@ void RL()
 	SETFN(0);
 	SETFH(0);
 	SETFC(!!(*reg.r[opcode.z] & 0x80));
+
 	*reg.r[opcode.z] <<= 1;
 	*reg.r[opcode.z] += carry;
 	SETFZ(!*reg.r[opcode.z]);
@@ -540,16 +548,17 @@ void RL()
 
 void SLA()
 {
-	SETFZ(!!(*reg.r[opcode.z] & 0x80));
 	SETFN(0);
 	SETFH(0);
+	SETFC(!!(*reg.r[opcode.z] & 0x80));
+
 	*reg.r[opcode.z] <<= 1;
-	SETFC(!*reg.r[opcode.z]);
+	SETFZ(!*reg.r[opcode.z]);
 }
 
 void BIT()
 {
-	SETFZ(!!(*reg.r[opcode.z] & (1 << opcode.y)));
+	SETFZ(!(*reg.r[opcode.z] & (1 << opcode.y)));
 	SETFN(0);
 	SETFH(1);
 }
