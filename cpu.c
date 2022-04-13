@@ -310,7 +310,6 @@ void RLA()
 	SETFN(0);
 	SETFH(0);
 	SETFC(!!(reg.A & 0x80));
-
 	reg.A <<= 1;
 	reg.A += carry;
 }
@@ -327,7 +326,7 @@ void LD()
 void ADD()
 {
 	unsigned int result = reg.A + *reg.r[opcode.z];
-	reg.A = (unsigned char)(result & 0xFF);
+	reg.A = (Byte)(result & 0xFF);
 
 	SETFZ(!reg.A);
 	SETFN(0);
@@ -338,7 +337,7 @@ void ADD()
 void ADD_HL()
 {
 	unsigned int result = reg.A + rb(reg.HL);
-	reg.A = (unsigned char)(result & 0xFF);
+	reg.A = (Byte)(result & 0xFF);
 
 	SETFZ(!reg.A);
 	SETFN(0);
