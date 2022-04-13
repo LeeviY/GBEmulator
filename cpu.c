@@ -178,55 +178,49 @@ void STOP()
 	cpu.stopped = 1;
 }
 
-void RRCA()
+void LD_nn_SP()
 {
-	Byte carry = reg.A & 0x01;
-	if (carry) 
-		FLAGSET(FC);
-	else 
-		FLAGCLEAR(FC);
-
-	reg.A >>= 1;
-	if (carry) 
-		reg.A |= 0x80;
-
-	FLAGCLEAR(FN | FZ | FH);
+	ww(nextOps(), reg.SP);
 }
 
-void RLA()
+void JR_n()
 {
-	int carry = FLAGISSET(FC) ? 1 : 0;
+	signed char a = (signed char)nextOps();
+	//printf("JUMP RIGHT HERE %x\n", a);
+	reg.PC += a - 1;
 
-	FLAGEMPTY();
+	cpu.clock += 4;
+}
 
-	if (reg.A & 0x80)
-		FLAGSET(FC);
+void JR_nc_n()
+{
+	if (!(reg.F & opcodeTable.cc[opcode.y - 4]))
+	{
+		signed char a = (signed char)nextOp();
+		//printf("JUMP RIGHT HERE %x\n", a);
+		reg.PC += a - 1;
 
-	reg.A <<= 1;
-	reg.A += carry;
+		cpu.clock += 4;
+	}
+	reg.PC++;
+}
 
-	if (!reg.A)
-		FLAGSET(FZ);
+void JR_cc_n()
+{
+	if (reg.F & opcodeTable.cc[opcode.y - 4])
+	{
+		signed char a = (signed char)nextOp();
+		//printf("JUMP RIGHT HERE %x\n", a);
+		reg.PC += a - 1;
+
+		cpu.clock += 4;
+	}
+	reg.PC++;
 }
 
 void LD_rp_nn()
 {
 	*reg.rp[opcode.p] = nextOps();
-}
-
-void LD()
-{
-	*reg.r[opcode.y] = *reg.r[opcode.z];
-}
-
-void LD_n()
-{
-	*reg.r[opcode.y] = nextOp();
-}
-
-void LDi_A_rp()
-{
-	reg.A = rw(*reg.rp[opcode.p]);
 }
 
 void ADD_HL_rp()
@@ -256,6 +250,11 @@ void LDi_HLp_A()
 void LDi_HLm_A()
 {
 	wb(reg.HL--, reg.A);
+}
+
+void LDi_A_rp()
+{
+	reg.A = rw(*reg.rp[opcode.p]);
 }
 
 void INC_rp()
@@ -301,49 +300,45 @@ void DEC()
 	return val;
 }
 
-void LD_nn_SP()
+void LD_n()
 {
-	ww(nextOps(), reg.SP);
+	*reg.r[opcode.y] = nextOp();
 }
 
-void LD_nn_A()
+void RRCA()
 {
-	wb(nextOps(), reg.A);
+	Byte carry = reg.A & 0x01;
+	if (carry)
+		FLAGSET(FC);
+	else
+		FLAGCLEAR(FC);
+
+	reg.A >>= 1;
+	if (carry)
+		reg.A |= 0x80;
+
+	FLAGCLEAR(FN | FZ | FH);
 }
 
-void JR_n()
+void RLA()
 {
-	signed char a = (signed char)nextOps();
-	//printf("JUMP RIGHT HERE %x\n", a);
-	reg.PC += a - 1;
+	int carry = FLAGISSET(FC) ? 1 : 0;
 
-	cpu.clock += 4;
+	FLAGEMPTY();
+
+	if (reg.A & 0x80)
+		FLAGSET(FC);
+
+	reg.A <<= 1;
+	reg.A += carry;
+
+	if (!reg.A)
+		FLAGSET(FZ);
 }
 
-void JR_nc_n()
+void LD()
 {
-	if (!(reg.F & opcodeTable.cc[opcode.y - 4]))
-	{
-		signed char a = (signed char)nextOp();
-		//printf("JUMP RIGHT HERE %x\n", a);
-		reg.PC += a - 1;
-
-		cpu.clock += 4;
-	}
-	reg.PC++;
-}
-
-void JR_cc_n()
-{
-	if (reg.F & opcodeTable.cc[opcode.y - 4])
-	{
-		signed char a = (signed char)nextOp();
-		//printf("JUMP RIGHT HERE %x\n", a);
-		reg.PC += a - 1;
-
-		cpu.clock += 4;
-	}
-	reg.PC++;
+	*reg.r[opcode.y] = *reg.r[opcode.z];
 }
 
 // Add z to A, leaving result in A (ADD A, z)
@@ -417,8 +412,6 @@ void SUB_n()
 
 	FLAGSET(FN);
 }
-
-
 
 void SBC_A()
 {
@@ -528,12 +521,9 @@ void LD_ff_c_A()
 	wb(0xFF00 + reg.C, reg.A);
 }
 
-void PUSH()
+void LD_nn_A()
 {
-	Byte p = opcode.p;
-
-	reg.SP -= 2;
-	ww(reg.SP, *reg.rp2[p]);
+	wb(nextOps(), reg.A);
 }
 
 void LD_A_nn()
@@ -572,6 +562,14 @@ void CALL()
 	Word a = nextOps();
 	printf("CALL RIGHT HERE %x\n", a);
 	reg.PC = a;//nextOps();
+}
+
+void PUSH()
+{
+	Byte p = opcode.p;
+
+	reg.SP -= 2;
+	ww(reg.SP, *reg.rp2[p]);
 }
 
 void RST()
