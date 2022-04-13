@@ -178,9 +178,137 @@ void STOP()
 	cpu.stopped = 1;
 }
 
+void RRCA()
+{
+	Byte carry = reg.A & 0x01;
+	if (carry) 
+		FLAGSET(FC);
+	else 
+		FLAGCLEAR(FC);
+
+	reg.A >>= 1;
+	if (carry) 
+		reg.A |= 0x80;
+
+	FLAGCLEAR(FN | FZ | FH);
+}
+
+void RLA()
+{
+	int carry = FLAGISSET(FC) ? 1 : 0;
+
+	FLAGEMPTY();
+
+	if (reg.A & 0x80)
+		FLAGSET(FC);
+
+	reg.A <<= 1;
+	reg.A += carry;
+
+	if (!reg.A)
+		FLAGSET(FZ);
+}
+
+void LD_rp_nn()
+{
+	*reg.rp[opcode.p] = nextOps();
+}
+
+void LD()
+{
+	*reg.r[opcode.y] = *reg.r[opcode.z];
+}
+
+void LD_n()
+{
+	*reg.r[opcode.y] = nextOp();
+}
+
+void LDi_A_rp()
+{
+	reg.A = rw(*reg.rp[opcode.p]);
+}
+
+void ADD_HL_rp()
+{
+	unsigned int res = reg.HL + *reg.rp[opcode.p];
+
+	if (res & 0xFFFF0000) 
+		FLAGSET(FC);
+	else 
+		FLAGCLEAR(FC);
+
+	reg.HL = (unsigned short)(res & 0xFFFF);
+
+	FLAGCLEAR(FN);
+
+	if (((reg.HL & 0x0F) + (*reg.rp[opcode.p] & 0x0F)) > 0x0F) 
+		FLAGSET(FH);
+	else 
+		FLAGCLEAR(FH);
+}
+
+void LDi_HLp_A()
+{
+	wb(reg.HL++, reg.A);
+}
+
+void LDi_HLm_A()
+{
+	wb(reg.HL--, reg.A);
+}
+
+void INC_rp()
+{
+	(*reg.rp[opcode.p])++;
+}
+
+void INC()
+{
+	if ((*reg.r[opcode.y] & 0x0F) == 0x0F)
+		FLAGSET(FH);
+	else
+		FLAGCLEAR(FH);
+
+	(*reg.r[opcode.y])++;
+
+	if (!*reg.r[opcode.y]) 
+		FLAGSET(FZ);
+	else
+		FLAGCLEAR(FZ);
+
+	FLAGCLEAR(FN);
+}
+
+void DEC()
+{
+	Byte val = *reg.r[opcode.y];
+
+	if (val & 0x0F)
+		FLAGCLEAR(FH);
+	else 
+		FLAGSET(FH);
+
+	val = --(*reg.r[opcode.y]);
+
+	if (val) 
+		FLAGCLEAR(FZ);
+	else 
+		FLAGSET(FZ);
+
+	FLAGSET(FN);
+
+	return val;
+}
+
 void LD_nn_SP()
 {
 	ww(nextOps(), reg.SP);
+}
+
+void LD_nn_A()
+{
+	wb(nextOps(), reg.A);
 }
 
 void JR_n()
@@ -218,160 +346,92 @@ void JR_cc_n()
 	reg.PC++;
 }
 
-void LD_rp_nn()
-{
-	*reg.rp[opcode.p] = nextOps();
-}
-
-void ADD_HL_rp()
-{
-	unsigned int result = reg.HL + *reg.rp[opcode.p];
-
-	SETFC(!!(result & 0xFFFF0000));
-
-	reg.HL = (unsigned short)(result & 0xFFFF);
-
-	SETFN(0);
-	SETFH(((reg.HL & 0x0F) + (*reg.rp[opcode.p] & 0x0F)) > 0x0F);
-}
-
-void LDi_HLp_A()
-{
-	wb(reg.HL++, reg.A);
-}
-
-void LDi_HLm_A()
-{
-	wb(reg.HL--, reg.A);
-}
-
-void LDi_A_rp()
-{
-	reg.A = rw(*reg.rp[opcode.p]);
-}
-
-void INC_rp()
-{
-	(*reg.rp[opcode.p])++;
-}
-
-void INC()
-{
-	SETFN(1);
-	SETFH((*reg.r[opcode.y] & 0x0F) == 0x0F);
-	
-	(*reg.r[opcode.y])++;
-	SETFZ(!*reg.r[opcode.y]);
-}
-
-void DEC()
-{
-	Byte val = *reg.r[opcode.y];
-	
-	SETFN(1);
-	SETFH(!(val & 0x0F));
-	val = --(*reg.r[opcode.y]);
-	SETFZ(!val);
-}
-
-void LD_n()
-{
-	*reg.r[opcode.y] = nextOp();
-}
-
-void RRCA()
-{
-	Byte carry = reg.A & 0x01;
-	
-	SETFZ(0);
-	SETFN(0);
-	SETFH(0);
-	SETFC(!!carry);
-
-	reg.A >>= 1;
-	if (carry)
-	{
-		reg.A |= 0x80;
-	}
-}
-
-void RLA()
-{
-	int carry = ISFC ? 1 : 0;
-	
-	SETFN(0);
-	SETFH(0);
-	SETFC(!!(reg.A & 0x80));
-
-	reg.A <<= 1;
-	reg.A += carry;
-	SETFZ(!reg.A);
-}
-
-// x == 1
-// ----------------------------------------------------------------------------
-void LD()
-{
-	*reg.r[opcode.y] = *reg.r[opcode.z];
-}
-
-// x == 2
-// ----------------------------------------------------------------------------
+// Add z to A, leaving result in A (ADD A, z)
 void ADD()
 {
-	unsigned int result = reg.A + *reg.r[opcode.z];
-	reg.A = (unsigned char)(result & 0xFF);
+	Byte a = reg.A;
+	reg.A += *reg.r[opcode.z];
+	reg.F = 0;
+	if (!reg.A) 
+		FLAGSET(FZ);
+	if (reg.A > 0xFF) 
+		FLAGSET(FC);
+	if ((reg.A ^ *reg.r[opcode.z] ^ a) & 0x10)
+		FLAGSET(FH);
 
-	SETFZ(!!reg.A);
-	SETFN(0);
-	SETFH(((reg.A & 0x0F) + (*reg.r[opcode.z] & 0x0F)) > 0x0F);
-	SETFC(!!(result & 0xFF00));
+	reg.A &= 255;
 }
 
 void ADD_HL()
 {
-	unsigned int result = reg.A + rb(reg.HL);
-	reg.A = (unsigned char)(result & 0xFF);
+	Byte a = reg.A;
+	Byte val = rb(reg.HL);
+	reg.A += rb(reg.HL);
+	reg.F = 0;
+	if (!reg.A) 
+		FLAGSET(FZ);
+	if (reg.A > 0xFF) 
+		FLAGSET(FC);
+	if ((reg.A ^ val ^ a) & 0x10)
+		FLAGSET(FH);
 
-	SETFZ(!!reg.A);
-	SETFN(0);
-	SETFH(((reg.A & 0x0F) + (rb(reg.HL) & 0x0F)) > 0x0F);
-	SETFC(!!(result & 0xFF00));
+	reg.A &= 255;
 }
 
 void SUB()
 {
 	Byte val = *reg.r[opcode.z];
 
-	SETFN(1);
-	SETFH((val & 0x0F) > (reg.A & 0x0F));
-	SETFC(val > reg.A);
+	FLAGEMPTY();
+
+	if (val > reg.A)
+		FLAGSET(FC);
+
+	if ((val & 0x0F) > (reg.A & 0x0F))
+		FLAGSET(FH);
 
 	reg.A -= val;
-	SETFZ(!reg.A);
+
+	if (!reg.A)
+		FLAGSET(FZ);
+
+	FLAGSET(FN);
 }
 
 void SUB_n()
 {
 	Byte val = nextOp();
 
-	SETFN(1);
-	SETFH((val & 0x0F) > (reg.A & 0x0F));
-	SETFC(val > reg.A);
+	FLAGEMPTY();
+
+	if (val > reg.A)
+		FLAGSET(FC);
+
+	if ((val & 0x0F) > (reg.A & 0x0F))
+		FLAGSET(FH);
 
 	reg.A -= val;
-	SETFZ(!reg.A);
+
+	if (!reg.A)
+		FLAGSET(FZ);
+
+	FLAGSET(FN);
 }
+
+
 
 void SBC_A()
 {
 	Byte val = *reg.r[opcode.y];
 	val += ISFC ? 1 : 0;
 
-	SETFZ(val == reg.A);
-	SETFN(1);
-	SETFH((val & 0x0F) > (reg.A & 0x0F));
-	SETFC(val > reg.A);
+	reg.F = 0;
+
+	FLAGSET(FN);
+
+	if (val > reg.A) FLAGSET(FC);
+	if (val == reg.A) FLAGSET(FZ);
+	if ((val & 0x0F) > (reg.A & 0x0F)) FLAGSET(FH);
 
 	reg.A -= val;
 }
@@ -380,40 +440,54 @@ void XOR()
 {
 	reg.A ^= *reg.r[opcode.z];
 	
-	SETFZ(!reg.A);
-	SETFN(0);
-	SETFH(0);
-	SETFC(0);
+	FLAGEMPTY();
+
+	if (!reg.A) 
+		FLAGSET(FZ);
 }
 
 void CP()
 {
-	SETFZ(reg.A == *reg.r[opcode.z]);
-	SETFN(1);
-	SETFH((*reg.r[opcode.z] & 0x0F) > (reg.A & 0x0F));
-	SETFC(reg.A < *reg.r[opcode.z]);
+	FLAGEMPTY();
+
+	FLAGSET(FN);
+	if (reg.A == *reg.r[opcode.z])
+		FLAGSET(FZ);
+	if (reg.A < *reg.r[opcode.z])
+		FLAGSET(FC);
+	if ((*reg.r[opcode.z] & 0x0F) > (reg.A & 0x0F))
+		FLAGSET(FH);
 }
 
 void CP_HL()
 {
-	SETFZ(reg.A == rb(reg.HL));
-	SETFN(1);
-	SETFH((rb(reg.HL) & 0x0F) > (reg.A & 0x0F));
-	SETFC(reg.A < rb(reg.HL));
+	FLAGEMPTY();
+
+	FLAGSET(FN);
+	if (reg.A == rb(reg.HL))
+		FLAGSET(FZ);
+	if (reg.A < rb(reg.HL))
+		FLAGSET(FC);
+	if ((rb(reg.HL) & 0x0F) > (reg.A & 0x0F))
+		FLAGSET(FH);
 }
 
 void CP_n()
 {
 	Byte operand = nextOp();
 
-	SETFZ(reg.A == operand);
-	SETFN(1);
-	SETFH((operand & 0x0F) > (reg.A & 0x0F));
-	SETFC(operand > reg.A);
+	FLAGSET(FC);
+
+	if (reg.A == operand) FLAGSET(FZ);
+	else FLAGCLEAR(FZ);
+
+	if (operand > reg.A) FLAGSET(FC);
+	else FLAGCLEAR(FC);
+
+	if ((operand & 0x0F) > (reg.A & 0x0F)) FLAGSET(FH);
+	else FLAGCLEAR(FH);
 }
 
-// x == 3
-// ----------------------------------------------------------------------------
 void LD_ff_n_A()
 {
 	wb(0xFF00 + nextOp(), reg.A);
@@ -454,9 +528,12 @@ void LD_ff_c_A()
 	wb(0xFF00 + reg.C, reg.A);
 }
 
-void LD_nn_A()
+void PUSH()
 {
-	wb(nextOps(), reg.A);
+	Byte p = opcode.p;
+
+	reg.SP -= 2;
+	ww(reg.SP, *reg.rp2[p]);
 }
 
 void LD_A_nn()
@@ -465,14 +542,14 @@ void LD_A_nn()
 	reg.A = rb(addr);
 }
 
-void JP_nn()
+/*void JP_nn()
 {
-	/*signed char a = nextOps();
+	signed char a = nextOps();
 	//printf("JUMP RIGHT HERE %x\n", a);
 	reg.PC += a - 1;
 
-	cpu.clock += 4;*/
-}
+	cpu.clock += 4;
+}*/
 
 void PRFX()
 {
@@ -491,18 +568,10 @@ void EI()
 
 void CALL()
 {
-	wwStack(reg.PC - 1);
-	Word op = nextOps();
-	//printf("CALL RIGHT HERE %x\n", op);
-	reg.PC = op;
-}
-
-void PUSH()
-{
-	Byte p = opcode.p;
-
-	reg.SP -= 2;
-	ww(reg.SP, *reg.rp2[p]);
+	wwStack(reg.PC-1);
+	Word a = nextOps();
+	printf("CALL RIGHT HERE %x\n", a);
+	reg.PC = a;//nextOps();
 }
 
 void RST()
@@ -524,34 +593,42 @@ void RST40()
 	reg.PC = 0x40;
 }
 
-// CB
-// ============================================================================
 void RL()
 {
-	int carry = ISFC ? 1 : 0;
+	int carry = FLAGISSET(FC) ? 1 : 0;
 
-	SETFN(0);
-	SETFH(0);
-	SETFC(!!(*reg.r[opcode.z] & 0x80));
+	FLAGEMPTY();
+
+	if (*reg.r[opcode.z] & 0x80)
+		FLAGSET(FC);
+
 	*reg.r[opcode.z] <<= 1;
 	*reg.r[opcode.z] += carry;
-	SETFZ(!*reg.r[opcode.z]);
+
+	if (!*reg.r[opcode.z])
+		FLAGSET(FZ);
 }
 
 void SLA()
 {
-	SETFZ(!!(*reg.r[opcode.z] & 0x80));
-	SETFN(0);
-	SETFH(0);
+	FLAGEMPTY();
+
+	if (*reg.r[opcode.z] & 0x80) 
+		FLAGSET(FC);
+
 	*reg.r[opcode.z] <<= 1;
-	SETFC(!*reg.r[opcode.z]);
+
+	if (!*reg.r[opcode.z]) 
+		FLAGSET(FZ);
 }
 
 void BIT()
 {
-	SETFZ(!!(*reg.r[opcode.z] & (1 << opcode.y)));
-	SETFN(0);
-	SETFH(1);
+	if (!(*reg.r[opcode.z] & (1 << opcode.y)))
+		FLAGSET(FZ);
+
+	FLAGCLEAR(FN);
+	FLAGSET(FH);
 }
 
 void SET()
