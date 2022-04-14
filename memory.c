@@ -29,10 +29,12 @@ void loadRom(char* fileName)
 	fread(_rom, sizeof(Byte), 0x7FFF, fptr);
 }
 
-void copy(Word destination, Word source, size_t length) 
+void copy(Word dest, Word source, size_t length)
 {
-	for (unsigned int i = 0; i < length; i++)
-		wb(destination + i, rb(source + i));
+	for (unsigned int i = 0; i < length; ++i)
+	{
+		wb(dest + i, rb(source + i));
+	}
 }
 
 Byte rb(Word addr)
@@ -62,6 +64,11 @@ Byte rb(Word addr)
 	else if (addr >= 0xFE00 && addr < 0xFF00)
 		return _oam[addr - 0xFE00];
 
+	else if (addr == 0xFF00)
+	{
+
+	}
+
 	else if (addr == 0xFF04)
 		return (Byte)rand();
 
@@ -79,11 +86,6 @@ Byte rb(Word addr)
 
 	else if (addr == 0xFF44)
 		return gpu.line;
-
-	else if (addr == 0xFF00)
-	{
-
-	}
 
 	else if (addr == 0xFF0F)
 		return interrupt.flags;
@@ -109,9 +111,6 @@ void wb(Word addr, Byte val)
 {
 	//printf("Write to address 0x%02x\n", addr);
 
-	// Block writes to ff80
-	//if (addr == 0xff80) return;
-
 	if (_inbios)
 	{
 		if (addr < 0x100)
@@ -129,11 +128,17 @@ void wb(Word addr, Byte val)
 	else if (addr >= 0x8000 && addr < 0xA000)
 	{
 		_vram[addr - 0x8000] = val;
-		if (addr < 0x9800) 
-			updateTile(addr, val);
+		if (addr < 0x9800)
+		{
+			updateTile(addr);
+		}
 	}
 
-	if (addr >= 0xC000 && addr < 0xFE00)
+	if (addr < 0xC000)
+	{
+	}
+
+	else if (addr >= 0xC000 && addr < 0xFE00)
 		_wram[addr - 0xC000] = val;
 
 	else if (addr >= 0xFE00 && addr < 0xFF00)
@@ -149,21 +154,27 @@ void wb(Word addr, Byte val)
 		gpu.scy = val;
 
 	else if (addr == 0xFF43)
+	{
 		gpu.scx = val;
-
+	}
+		
 	else if (addr == 0xFF46)
 		copy(0xFE00, val << 8, 160);
 
 	else if (addr == 0xFF47)
 	{
-		for (int i = 0; i < 4; i++) 
+		for (int i = 0; i < 4; i++)
+		{
 			bgPalette[i] = palette[(val >> (i * 2)) & 3];
+		}
 	}
 
 	else if (addr == 0xFF48)
 	{
 		for (int i = 0; i < 4; i++)
+		{
 			objPalette[0][i] = palette[(val >> (i * 2)) & 3];
+		}
 	}
 
 	else if (addr == 0xFF49)
@@ -173,7 +184,7 @@ void wb(Word addr, Byte val)
 	}
 
 	else if (addr == 0xFF0F)
-		return interrupt.flags = val;
+		interrupt.flags = val;
 
 	else if (addr >= 0xFF00 && addr < 0xFF80)
 		_io[addr - 0xFF00] = val;
@@ -187,8 +198,13 @@ void wb(Word addr, Byte val)
 
 void ww(Word addr, Word val)
 {
+	if (addr == 0xFFFE)
+		NOP();
+
 	wb(addr, (Byte)(val & 0x00FF));
 	wb(addr + 1, (Byte)((val & 0xFF00) >> 8));
+
+	//printf("WRITE 0x%04X TO 0x%04X\n", val, rw(addr));
 }
 
 Byte rwStack()

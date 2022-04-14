@@ -1,3 +1,5 @@
+#define _CRT_SECURE_NO_WARNINGS
+
 #pragma once
 
 #define FZ 0x80
@@ -10,21 +12,23 @@
 #define ISFH (reg.F & FH)
 #define ISFC (reg.F & FC)
 
-#define SETFZ(x) (reg.F = reg.F & ~(FZ) | (x << 7))
-#define SETFN(x) (reg.F = reg.F & ~(FN) | (x << 6))
-#define SETFH(x) (reg.F = reg.F & ~(FH) | (x << 5))
-#define SETFC(x) (reg.F = reg.F & ~(FC) | (x << 4))
+#define SETFZ(x) (reg.F = reg.F & ~(FZ) | (!!(x) << 7))
+#define SETFN(x) (reg.F = reg.F & ~(FN) | (!!(x) << 6))
+#define SETFH(x) (reg.F = reg.F & ~(FH) | (!!(x) << 5))
+#define SETFC(x) (reg.F = reg.F & ~(FC) | (!!(x) << 4))
 
-#define FLAGISSET(x) (reg.F & (x))
-#define FLAGSET(x) (reg.F |= (x))
-#define FLAGCLEAR(x) (reg.F &= ~(x))
-#define FLAGEMPTY() (reg.F = 0)
+#define VBLANK (1 << 0)
+#define LCD_STAT (1 << 1)
+#define TIMER (1 << 2)
+#define SERIAL (1 << 3)
+#define JOYPAD (1 << 4)
 
 #define printbits_n(x,n) for (int i=n;i;i--,putchar('0'|(x>>i)&1))
 #define printbits_8(x) printbits_n(x,8)
 
 #include <stdlib.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #include "memory.h"
 #include "registers.h"
@@ -82,6 +86,8 @@ void resetCPU();
 // Step cpu one tick
 void step();
 
+void checkInterrupt();
+
 //https://gb-archive.github.io/salvage/decoding_gbz80_opcodes/Decoding%20Gamboy%20Z80%20Opcodes.html
 // x == 0
 void NOP();
@@ -99,6 +105,7 @@ void INC_rp();
 void INC();
 void DEC();
 void LD_n();
+//void LD_HL_n();
 void RRCA();
 void RLA();
 // x == 1
@@ -109,6 +116,8 @@ void ADD_HL();
 void SUB();
 void SUB_n();
 void SBC_A();
+void AND();
+void AND_n();
 void XOR();
 void CP();
 void CP_HL();
@@ -123,7 +132,7 @@ void RETI();
 void LD_ff_c_A();
 void LD_nn_A();
 void LD_A_nn();
-//void JP_nn();
+void JP_nn();
 void PRFX();
 void DI();
 void EI();
@@ -138,5 +147,7 @@ void RL();
 void SLA();
 // x == 1
 void BIT();
+// x == 2
+void RES();
 // x == 3
 void SET();

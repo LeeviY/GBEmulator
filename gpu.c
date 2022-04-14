@@ -27,41 +27,71 @@ const Byte palette[4] = { 255, 192, 96, 0 };
 Byte bgPalette[4];
 Byte objPalette[2][4];
 
-Byte frameBuffer[160 * 144];
+Byte frameBuffer[160 * 144][3];
 
-// SFML
-sfRenderWindow* window;
-
-void drawWindow()
+void printTileMap()
 {
-	//printf("WINDOW DRAW\n\n");
-
-	sfIntRect rect = { 160, 144 };
-	sfSprite* sprite = sfSprite_create();
-
-	sfImage* image = sfImage_create(160, 144);
-
-	/*for (int i = 0; i < (160 * 144); ++i)
+	for (int i = 0; i < 24; ++i)
 	{
-		if ((i+1) % 160 == 0) printf("%02d \n", i);
-		printf("%d ", frameBuffer[i]);
-	}*/
+		for (int y = 0; y < 8; ++y)
+		{
+			printf("\n");
+			for (int j = 0; j < 16; ++j)
+			{
+				for (int x = 0; x < 8; ++x)
+				{
+					int color = tiles[j + i * 24][y][x];
 
-	for (int i = 0; i < (160 * 144); ++i)
-	{
-		sfColor color = { palette[frameBuffer[i]], palette[frameBuffer[i]], palette[frameBuffer[i]], 255 };
-		sfImage_setPixel(image, i % 160, i % 144, color);
+					//printf("%d ", color);
+					switch (color)
+					{
+					case 3:
+						printf("0");
+						break;
+					case 2:
+						printf("*");
+						break;
+					case 1:
+						printf(".");
+						break;
+					case 0:
+						printf(" ");
+						break;
+					}
+				}
+			}
+		}
 	}
+	printf("\n");
+}
 
-	sfTexture* texture = sfTexture_createFromImage(image, &rect);
-	sfSprite_setTexture(sprite, texture, 0);
-
-	sfRenderWindow_drawSprite(window, sprite, NULL);
-	sfWindow_display(window);
-
-	sfSprite_destroy(sprite);
-	sfImage_destroy(image);
-	sfTexture_destroy(texture);
+void printFrameBuffer()
+{
+	for (int i = 0; i < 160 * 144; ++i)
+	{
+		if (i % 160 == 0) printf("\n");
+		int a = frameBuffer[i];
+		switch (a)
+		{
+		case 255:
+			printf("0");
+			break;
+		case 192:
+			printf("*");
+			break;
+		case 96:
+			printf(".");
+			break;
+		case 0:
+			printf(" ");
+			break;
+		default:
+			printf("X");
+			break;
+		}
+		
+	}
+	printf("\n");
 }
 
 void reset()
@@ -71,71 +101,83 @@ void reset()
 
 void stepGPU()
 {
-	gpu.clock = 0;
+	gpu.clock += cpu.clock - gpu.lastClock;
 
-	gpu.clock += cpu.clock;
+	gpu.lastClock = cpu.clock;
 
-	//printf("Line %d %d ", gpu.line, gpu.clock);
+	//printf("%d", gpu.mode);
 
 	switch (gpu.mode)
 	{
 	case GPU_MODE_OAM:
 		if (gpu.clock >= 80)
 		{
-			gpu.clock -= 80;
 			gpu.mode = GPU_MODE_VRAM;
+			gpu.clock -= 80;
 		}
 		break;
+
 	case GPU_MODE_VRAM:
 		if (gpu.clock >= 172)
 		{
-			gpu.clock -= 172;
 			gpu.mode = GPU_MODE_HBLANK;
 
 			renderScan();
+			gpu.clock -= 172;
 		}
 		break;
+
 	case GPU_MODE_HBLANK:
 		if (gpu.clock >= 204)
 		{
-			gpu.clock -= 204;
 			gpu.line++;
 			gpu.mode = GPU_MODE_HBLANK;
 
 			if (gpu.line == 143)
 			{
+				interrupt.flags |= VBLANK;
 				gpu.mode = GPU_MODE_VBLANK;
-				drawWindow();
+				//drawTileMap();
+				drawFrameBuffer();
 			}
 			else
 			{
 				gpu.mode = GPU_MODE_OAM;
 			}
+			gpu.clock -= 204;
 		}
 		break;
+
 	case GPU_MODE_VBLANK:
 		if (gpu.clock >= 456)
 		{
-			gpu.clock -= 456;
 			gpu.line++;
 
 			if (gpu.line > 153)
 			{
-				// Restart scan
 				gpu.mode = GPU_MODE_OAM;
 				gpu.line = 0;
 			}
+			gpu.clock -= 456;
 		}
-		break;
-	default:
 		break;
 	}
 }
 
 void renderScan()
 {
+	// Check if lcd is on
+	/*if (!(gpu.lcdc & LCDC_ENABLE))
+	{
+		return;
+	}*/
+
 	int mapOffs = (gpu.lcdc & LCDC_TILEMAP) ? 0x1C00 : 0x1800;
-	mapOffs += (((gpu.line + gpu.scy) & 255) >> 3) << 5;
+
+	mapOffs += (((gpu.line + gpu.scy) & 0xFF) >> 3) << 5;
+
+	//printf("%04X\n", mapOffs + 0x8000);
+
 	int lineOffs = (gpu.scx >> 3);
 
 	int x = gpu.scx & 7;
@@ -145,86 +187,49 @@ void renderScan()
 
 	Word tile = _vram[mapOffs + lineOffs];
 
-	Byte scanlineRow[160];
-
-	/*if (gpu.lcdc & LCDC_TILEDATA && tile < 128)
-		tile += 256;*/
-
-	for (int i = 0; i < 160; i++)
+	if (gpu.lcdc & LCDC_BGENABLE)
 	{
-		// Get tile color from palette
-		Byte color = tiles[tile][y][x];
-
-		scanlineRow[i] = color;
-
-		// Add pixel/color to framebuffer
-		frameBuffer[canvasOffs] = bgPalette[palette[color]];
-
-		// Next tile
-		if (++x == 8)
+		for (int i = 0; i < 160; i++)
 		{
-			x = 0;
-			lineOffs = (lineOffs + 1) & 31;
-			tile = _vram[mapOffs + lineOffs];
-			/*if (gpu.lcdc & LCDC_TILEMAP && tile < 128)
-				tile += 256;*/
-		}
-	}
+			// Get tile color from palette
+			Byte color = tiles[tile][y][x];
 
-	for (int i = 0; i < 40; i++) 
-	{
-		struct Object obj = { _oam[i], _oam[i] + 1, _oam[i] + 2, _oam[i] + 3 };
+			// Add pixel/color to framebuffer
+			frameBuffer[canvasOffs + i][0] = bgPalette[color];
+			frameBuffer[canvasOffs + i][1] = bgPalette[color];
+			frameBuffer[canvasOffs + i][2] = bgPalette[color];
 
-		int ox = obj.x - 8;
-		int oy = obj.y - 16;
+			// Next tile
 
-		if (oy <= gpu.line && (oy + 8) > gpu.line)
-		{
-			Byte* pal = objPalette[obj.options & OBJ_PALETTE];
+			//canvasOffs++;
 
-			int pixelOffset;
-			pixelOffset = gpu.line * 160 + ox;
-
-			Byte tileRow;
-			if (obj.options & OBJ_YFLIP) 
-				tileRow = 7 - (gpu.line - oy);
-			else 
-				tileRow = gpu.line - oy;
-
-			int x;
-			for (x = 0; x < 8; x++) 
+			if (++x == 8)
 			{
-				if (ox + x >= 0 && ox + x < 160 && (~(obj.options & OBJ_PRIORITY) ||
-					!scanlineRow[ox + x]))
-				{
-					Byte color;
-
-					if (obj.options & OBJ_XFLIP)
-						color = tiles[obj.tile][tileRow][7 - x];
-					else
-						color = tiles[obj.tile][tileRow][x];
-
-					if (color)
-						frameBuffer[pixelOffset] = pal[color];
-				}
+				x = 0;
+				lineOffs = (lineOffs + 1) & 31;
+				tile = _vram[mapOffs + lineOffs];
 			}
 		}
 	}
+	
+	if (gpu.lcdc & LCDC_OBJENABLE)
+	{
+	}
 }
 
-void updateTile(Word addr, Byte val)
+void updateTile(Word addr)
 {
-	//printf("Update tile %x %x\n", addr, val);
+	//printf("Update tile %04X\n", addr);
 	addr &= 0x1FFE;
 
-	Word tile = (addr >> 4) & 511;
+	Word tile = (addr >> 4) & 0x1FF;
+
 	Word y = (addr >> 1) & 7;
 
-	Byte bitIndex;
-	for (Byte x = 0; x < 8; x++) 
+	for (Byte x = 0; x < 8; ++x) 
 	{
-		bitIndex = 1 << (7 - x);
-		
-		tiles[tile][y][x] = ((_vram[addr] & bitIndex) ? 1 : 0) + ((_vram[addr + 1] & bitIndex) ? 2 : 0);
+		Byte bit = 1 << (7 - x);
+
+		tiles[tile][y][x] = ((_vram[addr] & bit) ? 1 : 0) + ((_vram[addr + 1] & bit) ? 2 : 0);
 	}
 }

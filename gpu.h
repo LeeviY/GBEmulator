@@ -1,7 +1,6 @@
 #pragma once
 
 #include <stdint.h>
-#include <SFML/Graphics.h>
 
 #include "memory.h"
 #include "cpu.h"
@@ -12,16 +11,17 @@ typedef uint16_t Word;
 // Gpu mode codes
 enum GpuMode
 {
-	GPU_MODE_OAM = 2,
-	GPU_MODE_VRAM = 3,
-	GPU_MODE_HBLANK = 0,
-	GPU_MODE_VBLANK = 1,
+	GPU_MODE_HBLANK,
+	GPU_MODE_VBLANK,
+	GPU_MODE_OAM,
+	GPU_MODE_VRAM
 };
 
 // Struct for storing gpu variables
 struct Gpu
 {
 	unsigned long clock;
+	int lastClock;
 	int mode;
 	int line;
 
@@ -46,11 +46,10 @@ extern const Byte palette[4];
 extern Byte bgPalette[4];
 extern Byte objPalette[2][4];
 
-extern Byte frameBuffer[160 * 144];
+extern Byte frameBuffer[160 * 144][3];
 
-// SFML draw
-extern sfRenderWindow* window;
-void drawWindow();
+void printTileMap();
+void printFrameBuffer();
 
 // Reset gpu to default values
 void reset();
@@ -60,4 +59,4 @@ void stepGPU();
 
 void renderScan();
 
-void updateTile(Word addr, Byte val);
+void updateTile(Word addr);

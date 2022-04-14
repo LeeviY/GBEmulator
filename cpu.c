@@ -34,18 +34,18 @@ struct OpcodeTable opcodeTable =
 		136, 137, 138, 139, 140, 141, 142, 143,
 		SUB, SUB, SUB, SUB, SUB, SUB, SUB, SUB,
 		SBC_A, SBC_A, SBC_A, SBC_A, SBC_A, SBC_A, 158, SBC_A,
-		160, 161, 162, 163, 164, 165, 166, 167,
+		AND, AND, AND, AND, AND, AND, 166, AND,
 		XOR, XOR, XOR, XOR, XOR, XOR, 174, XOR,
 		176, 177, 178, 179, 180, 181, 182, 183,
 		CP, CP, CP, CP, CP, CP, CP_HL, CP,
 
-		192, POP, 194, 195, 196, PUSH, 198, 199,
+		192, POP, 194, JP_nn, 196, PUSH, 198, 199,
 		200, RET, 202, PRFX, 204, CALL, 206, 207,
 		208, POP, 210, 211, 212, PUSH, SUB_n, 215,
 		216, 217, 218, 219, 220, 221, 222, 223,
-		LD_ff_n_A, POP, LD_ff_c_A, 227, 228, PUSH, 230, 231,
+		LD_ff_n_A, POP, LD_ff_c_A, 227, 228, PUSH, AND_n, 231,
 		232, 233, LD_nn_A, 235, 236, 237, 238, 239,
-		LD_A_ff_n, POP, 242, 243, 244, PUSH, 246, 247,
+		LD_A_ff_n, POP, 242, DI, 244, PUSH, 246, 247,
 		248, LD_SP_HL, 250, EI, 252, 253, CP_n, RST,
 	},
 
@@ -61,10 +61,10 @@ struct OpcodeTable opcodeTable =
 		BIT, BIT, BIT, BIT, BIT, BIT, BIT, BIT, BIT, BIT, BIT, BIT, BIT, BIT, 0, BIT,
 		BIT, BIT, BIT, BIT, BIT, BIT, BIT, BIT, BIT, BIT, BIT, BIT, BIT, BIT, 0, BIT,
 
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		RES, RES, RES, RES, RES, RES, RES, RES, RES, RES, RES, RES, RES, RES, 0, RES,
+		RES, RES, RES, RES, RES, RES, RES, RES, RES, RES, RES, RES, RES, RES, 0, RES,
+		RES, RES, RES, RES, RES, RES, RES, RES, RES, RES, RES, RES, RES, RES, 0, RES,
+		RES, RES, RES, RES, RES, RES, RES, RES, RES, RES, RES, RES, RES, RES, 0, RES,
 
 		SET, SET, SET, SET, SET, SET, SET, SET, SET, SET, SET, SET, SET, SET, 0, SET,
 		SET, SET, SET, SET, SET, SET, SET, SET, SET, SET, SET, SET, SET, SET, 0, SET,
@@ -118,7 +118,8 @@ void initCPU()
 	cpu.prefix = 0;
 	//opcodeTable.unPrefixed[2][0][0] = &opcodeTable.alu; opcodeTable.alu[7] = &CP;
 
-	loadRom("Pokemon_Red.gb");
+	loadRom("Tetris.gb");
+	//loadRom("Pokemon_Red.gb");
 	//loadRom("cpu_instrs.gb");
 }
 
@@ -130,6 +131,34 @@ void resetCPU()
 	}
 	reg.SP = 0;
 	reg.PC = 0;
+
+	interrupt.master = 1;
+	interrupt.enable = 0;
+	interrupt.flags = 0;
+
+	cpu.clock = 0;
+	cpu.prefix = 0;
+	cpu.stopped = 0;
+
+	gpu.lcdc = 0;
+	gpu.scx = 0;
+	gpu.scy = 0;
+	gpu.line = 0;
+	gpu.clock = 0;
+}
+
+void memoryDump()
+{
+	Byte memoryMirror[0xFFFF + 1];
+
+	for (int i = 0; i < 0xFFFF + 1; ++i)
+	{
+		memoryMirror[i] = rb((Word)i);
+	}
+
+	FILE* write_ptr;
+	write_ptr = fopen("test1.bin", "wb");  // w for write, b for binary
+	fwrite(memoryMirror, sizeof(memoryMirror), 1, write_ptr); // write 10 bytes from our buffer
 }
 
 void step()
@@ -138,31 +167,46 @@ void step()
 	if (cpu.stopped) 
 		return;
 
+	if (reg.PC == 0xFE)
+		NOP();
+
 	Byte op = rb(reg.PC++);
 
 	// Get opcode
 	parseOpCode(&opcode, op);
 	
-	//printf("0x%02x 0x%02x %-24s %03d pre=%d ", reg.PC-1, op, opNames[op], op, cpu.prefix);	
+	/*printf("0x%02x 0x%02x ", reg.PC - 1, op);
+
+	switch (numbers[op])
+	{
+	case 0:
+		printf(opNames[op]);
+		break;
+	case 1:
+		printf(opNames[op], nextOp());
+		reg.PC--;
+		break;
+	case 2:
+		printf(opNames[op], nextOps());
+		reg.PC -= 2;
+		break;
+	}*/
 
 	//printf("x=%d z=%d y=%d q=%d p=%d ", opcode.x, opcode.z, opcode.y, opcode.q, opcode.p);
 	//printbits_8(reg.F);
-	//printf(" A=%02x F=%02b B=%02x C=%02x D=%02x E=%02x H=%02x L=%02x (HL)=%02x PC=%02x SP=%02x  (SP)=%02x\n", reg.A, reg.F, reg.B, reg.C, reg.D, reg.E, reg.H, reg.L, rb(reg.HL), reg.PC, reg.SP, rb(reg.SP));
+	//printf(" A=%02x F=%02b B=%02x C=%02x D=%02x E=%02x H=%02x L=%02x (HL)=%02x PC=%02x SP=%02x (SP)=%02x\n", reg.A, reg.F, reg.B, reg.C, reg.D, reg.E, reg.H, reg.L, rb(reg.HL), reg.PC, reg.SP, rb(reg.SP));
 
-	if (reg.PC - 1 == 0xF4)
-		NOP();
-
-	if (reg.PC - 1 == 0xE0)
-		NOP();
-
-	if (reg.PC - 1 == 0xE6)
-		NOP();
+	if (reg.PC - 1 == 0x00FE)
+	{
+		//memoryDump();
+	}
 
 	// Check if last operation was 0xCB/prefix
 	if (cpu.prefix)
 	{
 		// CB operations
 		(*opcodeTable.cbPrefixed[op])();
+		
 		cpu.clock += cbInsTicks[op];
 		cpu.prefix = 0;
 	}
@@ -172,8 +216,28 @@ void step()
 		(*opcodeTable.unPrefixed[op])();
 		cpu.clock += insTicks[op];
 	}
+}
 
-	stepGPU();
+void checkInterrupt()
+{
+	//printf("%02x %02x %02x\n", interrupt.master, interrupt.enable, interrupt.flags);
+	if (interrupt.master && interrupt.enable && interrupt.flags)
+	{
+		Byte toggle = interrupt.enable & interrupt.flags;
+
+		if (toggle & VBLANK)
+		{
+			interrupt.flags &= ~VBLANK;
+			drawFrameBuffer();
+
+			RST40();
+		}
+		else
+		{
+			interrupt.master = 1;
+		}
+		interrupt.master = 1;
+	}
 }
 
 void NOP()
@@ -196,8 +260,6 @@ void JR_n()
 	signed char a = (signed char)nextOps();
 	//printf("JUMP RIGHT HERE %x\n", a);
 	reg.PC += a - 1;
-
-	cpu.clock += 4;
 }
 
 void JR_nc_n()
@@ -208,7 +270,7 @@ void JR_nc_n()
 		//printf("JUMP RIGHT HERE %x\n", a);
 		reg.PC += a - 1;
 
-		cpu.clock += 4;
+		cpu.clock += 1;
 	}
 	reg.PC++;
 }
@@ -221,7 +283,7 @@ void JR_cc_n()
 		//printf("JUMP RIGHT HERE %x\n", a);
 		reg.PC += a - 1;
 
-		cpu.clock += 4;
+		cpu.clock += 1;
 	}
 	reg.PC++;
 }
@@ -235,7 +297,7 @@ void ADD_HL_rp()
 {
 	unsigned int result = reg.HL + *reg.rp[opcode.p];
 
-	SETFC(!!(result & 0xFFFF0000));
+	SETFC(result & 0xFFFF0000);
 
 	reg.HL = (unsigned short)(result & 0xFFFF);
 
@@ -293,7 +355,7 @@ void RRCA()
 	SETFZ(0);
 	SETFN(0);
 	SETFH(0);
-	SETFC(!!carry);
+	SETFC(carry);
 
 	reg.A >>= 1;
 	if (carry)
@@ -309,7 +371,7 @@ void RLA()
 	SETFZ(0);
 	SETFN(0);
 	SETFH(0);
-	SETFC(!!(reg.A & 0x80));
+	SETFC(reg.A & 0x80);
 	reg.A <<= 1;
 	reg.A += carry;
 }
@@ -331,7 +393,7 @@ void ADD()
 	SETFZ(!reg.A);
 	SETFN(0);
 	SETFH(((reg.A & 0x0F) + (*reg.r[opcode.z] & 0x0F)) > 0x0F);
-	SETFC(!!(result & 0xFF00));
+	SETFC(result & 0xFF00);
 }
 
 void ADD_HL()
@@ -342,7 +404,7 @@ void ADD_HL()
 	SETFZ(!reg.A);
 	SETFN(0);
 	SETFH(((reg.A & 0x0F) + (rb(reg.HL) & 0x0F)) > 0x0F);
-	SETFC(!!(result & 0xFF00));
+	SETFC(result & 0xFF00);
 }
 
 void SUB()
@@ -380,6 +442,26 @@ void SBC_A()
 	SETFC(val > reg.A);
 
 	reg.A -= val;
+}
+
+void AND()
+{
+	reg.A &= *reg.r[opcode.z];
+
+	SETFZ(!reg.A);
+	SETFN(0);
+	SETFH(1);
+	SETFC(0);
+}
+
+void AND_n()
+{
+	reg.A &= nextOp();
+
+	SETFZ(!reg.A);
+	SETFN(0);
+	SETFH(1);
+	SETFC(0);
 }
 
 void XOR()
@@ -473,11 +555,9 @@ void LD_A_nn()
 
 void JP_nn()
 {
-	/*signed char a = nextOps();
+	Word a = nextOps();
 	//printf("JUMP RIGHT HERE %x\n", a);
-	reg.PC += a - 1;
-
-	cpu.clock += 4;*/
+	reg.PC = a;
 }
 
 void PRFX()
@@ -520,14 +600,11 @@ void RST()
 
 void RST40()
 {
-	// Disable further interrupts
 	interrupt.master = 0;
-
-	// Save current SP on the stack
 	wwStack(reg.PC);
-
-	// Jump to handler
 	reg.PC = 0x40;
+
+	cpu.clock += 12;
 }
 
 // CB
@@ -538,7 +615,7 @@ void RL()
 
 	SETFN(0);
 	SETFH(0);
-	SETFC(!!(*reg.r[opcode.z] & 0x80));
+	SETFC(*reg.r[opcode.z] & 0x80);
 
 	*reg.r[opcode.z] <<= 1;
 	*reg.r[opcode.z] += carry;
@@ -549,7 +626,7 @@ void SLA()
 {
 	SETFN(0);
 	SETFH(0);
-	SETFC(!!(*reg.r[opcode.z] & 0x80));
+	SETFC(*reg.r[opcode.z] & 0x80);
 
 	*reg.r[opcode.z] <<= 1;
 	SETFZ(!*reg.r[opcode.z]);
@@ -560,6 +637,11 @@ void BIT()
 	SETFZ(!(*reg.r[opcode.z] & (1 << opcode.y)));
 	SETFN(0);
 	SETFH(1);
+}
+
+void RES()
+{
+	*reg.r[opcode.z] |= ~(1 << opcode.y);
 }
 
 void SET()
