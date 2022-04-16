@@ -39,20 +39,19 @@ struct Object
 	Byte options;
 } extern obj;
 
-extern Byte tiles[384][8][8];
-
 extern const Byte palette[4];
-
 extern Byte bgPalette[4];
 extern Byte objPalette[2][4];
 
+extern Byte tiles[384][8][8];
 extern Byte frameBuffer[160 * 144][3];
 
+// Used for debug
 void printTileMap();
 void printFrameBuffer();
 
 // Reset gpu to default values
-void reset();
+void resetGpu();
 
 // Steps gpus by one tick
 void stepGPU();

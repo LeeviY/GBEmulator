@@ -3,8 +3,7 @@
 typedef unsigned char Byte;
 typedef unsigned short Word;
 
-extern const unsigned char ioReset[0x100];
-
+extern Byte _bios[0x100];
 extern Byte _rom[0x8000];	// Rom0 and 1
 extern Byte _oam[0x100];	// Object Attribute Memory
 extern Byte _vram[0x2000];	// Video ram
@@ -12,6 +11,11 @@ extern Byte _wram[0x2000];	// Working ram
 extern Byte _eram[0x2000];	// Echo ram
 extern Byte _io[0x100];		// IO
 extern Byte _zram[0x80];	// Zero page
+
+extern int _inbios;
+
+// Loads bootstrap rom from file to _bios
+void loadBootstrap(char* fileName);
 
 // Loads rom from file to _rom
 void loadRom(char* fileName);
@@ -28,11 +32,11 @@ void wb(Word addr, Byte val);
 void ww(Word addr, Word val);
 
 // Read two bytes from top of the stack
-Byte rwStack();
+Word rwFromStack();
 // Write two bytes to top of the stack
-void wwStack(Word val);
+void wwToStack(Word val);
 
 // Gets one operand
-Byte nextOp();
+Word nextByte();
 // Gets two operands
-Word nextOps();
+Word nextWord();

@@ -11,6 +11,7 @@
 #include "gpu.h"
 #include "tables.h"
 
+Byte _bios[0x100];
 Byte _rom[0x8000];
 Byte _oam[0x100];
 Byte _vram[0x2000];
@@ -20,6 +21,14 @@ Byte _io[0x100];
 Byte _zram[0x80];
 
 int _inbios = 1; // Controls if first sector is read from boot or rom
+
+void loadBootstrap(char* fileName)
+{
+	FILE* fptr;
+	fptr = fopen(fileName, "rb");
+
+	fread(_bios, sizeof(Byte), 0x100, fptr);
+}
 
 void loadRom(char* fileName)
 {
@@ -87,9 +96,6 @@ Byte rb(Word addr)
 	else if (addr == 0xFF44)
 		return gpu.line;
 
-	else if (addr == 0xFF0F)
-		return interrupt.flags;
-
 	else if (addr > 0xFF00 && addr < 0xFF80)
 		return _io[addr - 0xFF00];
 
@@ -104,12 +110,13 @@ Byte rb(Word addr)
 
 Word rw(Word addr)
 {
-	return rb(addr) + (rb(addr + 1) << 8);
+	return rb(addr) | (rb(addr + 1) << 8);
 }
 
 void wb(Word addr, Byte val)
 {
 	//printf("Write to address 0x%02x\n", addr);
+	if (addr == 0xFF80) return;
 
 	if (_inbios)
 	{
@@ -139,19 +146,29 @@ void wb(Word addr, Byte val)
 	}
 
 	else if (addr >= 0xC000 && addr < 0xFE00)
+	{
 		_wram[addr - 0xC000] = val;
+	}
 
 	else if (addr >= 0xFE00 && addr < 0xFF00)
+	{
 		_oam[addr - 0xFE00] = val;
+	}
 
 	else if (addr == 0xFF0F)
+	{
 		interrupt.flags = val;
+	}
 
 	else if (addr == 0xFF40)
+	{
 		gpu.lcdc = val;
+	}
 
 	else if (addr == 0xFF42)
+	{
 		gpu.scy = val;
+	}
 
 	else if (addr == 0xFF43)
 	{
@@ -159,7 +176,9 @@ void wb(Word addr, Byte val)
 	}
 		
 	else if (addr == 0xFF46)
+	{
 		copy(0xFE00, val << 8, 160);
+	}
 
 	else if (addr == 0xFF47)
 	{
@@ -184,32 +203,37 @@ void wb(Word addr, Byte val)
 	}
 
 	else if (addr == 0xFF0F)
+	{
 		interrupt.flags = val;
+	}
 
 	else if (addr >= 0xFF00 && addr < 0xFF80)
+	{
 		_io[addr - 0xFF00] = val;
+	}
 
 	else if (addr >= 0xFF80 && addr < 0xFFFF)
+	{
 		_zram[addr - 0xFF80] = val;
+	}
 
 	else if (addr == 0xFFFF)
+	{
 		interrupt.enable = val;
+	}
 }
 
 void ww(Word addr, Word val)
 {
-	if (addr == 0xFFFE)
-		NOP();
-
 	wb(addr, (Byte)(val & 0x00FF));
 	wb(addr + 1, (Byte)((val & 0xFF00) >> 8));
 
 	//printf("WRITE 0x%04X TO 0x%04X\n", val, rw(addr));
 }
 
-Byte rwStack()
+Word rwFromStack()
 {
-	Byte value = rw(reg.SP);
+	Word value = rw(reg.SP);
 	reg.SP += 2;
 
 	//printf("Stack read 0x%02x\n", value);
@@ -217,7 +241,7 @@ Byte rwStack()
 	return value;
 }
 
-void wwStack(Word val)
+void wwToStack(Word val)
 {
 	reg.SP -= 2;
 	ww(reg.SP, val);
@@ -225,14 +249,14 @@ void wwStack(Word val)
 	//printf("Stack write 0x%02x\n", val);
 }
 
-Byte nextOp()
+Word nextByte()
 {
-	Byte op = rb(reg.PC);
+	Word op = rb(reg.PC);
 	reg.PC++;
 	return op;
 }
 
-Word nextOps() 
+Word nextWord() 
 {
 	Word op = rw(reg.PC);
 	reg.PC += 2;

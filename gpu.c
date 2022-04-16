@@ -14,19 +14,13 @@
 
 #include "gpu.h"
 
-struct Gpu gpu =
-{
-	.mode = GPU_MODE_HBLANK,
-	.line = 0
-};
-
-Byte tiles[384][8][8];
+struct Gpu gpu;
 
 const Byte palette[4] = { 255, 192, 96, 0 };
-
 Byte bgPalette[4];
 Byte objPalette[2][4];
 
+Byte tiles[384][8][8];
 Byte frameBuffer[160 * 144][3];
 
 void printTileMap()
@@ -94,9 +88,16 @@ void printFrameBuffer()
 	printf("\n");
 }
 
-void reset()
+void resetGpu()
 {
+	gpu.clock = 0;
+	gpu.lastClock = 0;
+	gpu.mode = GPU_MODE_HBLANK;
+	gpu.line = 0;
 
+	gpu.lcdc = 0;
+	gpu.scx = 0;
+	gpu.scy = 0;
 }
 
 void stepGPU()
@@ -137,8 +138,7 @@ void stepGPU()
 			{
 				interrupt.flags |= VBLANK;
 				gpu.mode = GPU_MODE_VBLANK;
-				//drawTileMap();
-				drawFrameBuffer();
+				reDisplay();
 			}
 			else
 			{

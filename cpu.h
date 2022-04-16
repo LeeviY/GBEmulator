@@ -17,7 +17,7 @@
 #define SETFH(x) (reg.F = reg.F & ~(FH) | (!!(x) << 5))
 #define SETFC(x) (reg.F = reg.F & ~(FC) | (!!(x) << 4))
 
-#define VBLANK (1 << 0)
+#define VBLANK 1
 #define LCD_STAT (1 << 1)
 #define TIMER (1 << 2)
 #define SERIAL (1 << 3)
@@ -78,75 +78,105 @@ struct Interrupt
 void parseOpCode(struct OpCode* opCode, int hex);
 
 // Initialize processor
-void initCPU();
+void initCpu();
 
 // Reset registers
-void resetCPU();
+void resetCpu();
+
+// Writes entire gb memory to file
+void memoryDump();
 
 // Step cpu one tick
-void step();
+void stepCpu();
 
 void checkInterrupt();
 
 //https://gb-archive.github.io/salvage/decoding_gbz80_opcodes/Decoding%20Gamboy%20Z80%20Opcodes.html
+
+void UNDEF();
 // x == 0
 void NOP();
 void STOP();
-void LD_nn_SP();
+void LD_nni_SP();
 void JR_n();
 void JR_nc_n();
 void JR_cc_n();
 void LD_rp_nn();
 void ADD_HL_rp();
-void LDi_HLp_A();
-void LDi_HLm_A();
-void LDi_A_rp();
+void LD_rpi_A();
+void LDI_HL_A();
+void LDD_HL_A();
+void LD_A_rpi();
+void LDI_A_HL();
+void LDD_A_HL();
 void INC_rp();
+void DEC_rp();
 void INC();
+void INC_HL();
 void DEC();
+void DEC_HL();
 void LD_n();
-//void LD_HL_n();
+void LD_HL_n();
 void RRCA();
 void RLA();
+void CPL();
+void SCF();
 // x == 1
 void LD();
+void LD_r_HL();
+void LD_HL_r();
 // x == 2
 void ADD();
 void ADD_HL();
+void ADC();
 void SUB();
-void SUB_n();
 void SBC_A();
 void AND();
-void AND_n();
 void XOR();
+void XOR_HL();
+void OR();
+void OR_HL();
 void CP();
 void CP_HL();
-void CP_n();
 // x == 3
+void RET_nc();
+void RET_cc();
 void LD_ff_n_A();
 void LD_A_ff_n();
-void LD_SP_HL();
 void POP();
 void RET();
 void RETI();
-void LD_ff_c_A();
-void LD_nn_A();
-void LD_A_nn();
+void JP_HL();
+void LD_SP_HL();
+void JP_nc_nn();
+void JP_cc_nn();
+void LD_ff_C_A();
+void LD_nni_A();
+void LD_A_nni();
 void JP_nn();
 void PRFX();
 void DI();
 void EI();
-void CALL();
+void CALL_nc();
+void CALL_cc();
 void PUSH();
+void CALL();
+void ADD_n();
+void ADC_n();
+void SUB_n();
+void AND_n();
+void CP_n();
 void RST();
-void RST40();
+void INT40();
 
 // Prefixed
 // x == 0
 void RL();
 void SLA();
+void SWAP();
 // x == 1
 void BIT();
+void BIT_HL();
 // x == 2
 void RES();
 // x == 3
