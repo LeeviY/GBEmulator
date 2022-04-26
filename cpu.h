@@ -1,12 +1,6 @@
 #define _CRT_SECURE_NO_WARNINGS
 
 #pragma once
-
-#define FZ 0x80
-#define FN 0x40
-#define FH 0x20
-#define FC 0x10
-
 #define ISFZ (reg.F & FZ)
 #define ISFN (reg.F & FN)
 #define ISFH (reg.F & FH)
@@ -17,12 +11,6 @@
 #define SETFH(x) (reg.F = reg.F & ~(FH) | (!!(x) << 5))
 #define SETFC(x) (reg.F = reg.F & ~(FC) | (!!(x) << 4))
 
-#define VBLANK 1
-#define LCD_STAT (1 << 1)
-#define TIMER (1 << 2)
-#define SERIAL (1 << 3)
-#define JOYPAD (1 << 4)
-
 #define printbits_n(x,n) for (int i=n;i;i--,putchar('0'|(x>>i)&1))
 #define printbits_8(x) printbits_n(x,8)
 
@@ -32,10 +20,28 @@
 
 #include "memory.h"
 #include "registers.h"
-#include "gpu.h"
+#include "ppu.h"
 
 typedef unsigned char Byte;
 typedef uint16_t Word;
+
+enum
+{
+	FZ = 0x80,
+	FN = 0x40,
+	FH = 0x20,
+	FC = 0x10
+};
+
+enum
+{
+	INT_VBLANK = 1,
+	INT_LCD_STAT = (1 << 1),
+	INT_TIMER = (1 << 2),
+	INT_SERIAL = (1 << 3),
+	INT_JOYPAD = (1 << 4),
+
+};
 
 // Stores function pointers to cpu operations
 struct OpcodeTable
@@ -99,7 +105,6 @@ void NOP();
 void STOP();
 void LD_nni_SP();
 void JR_n();
-void JR_nc_n();
 void JR_cc_n();
 void LD_rp_nn();
 void ADD_HL_rp();
@@ -117,21 +122,29 @@ void DEC();
 void DEC_HL();
 void LD_n();
 void LD_HL_n();
+void RLCA();
 void RRCA();
 void RLA();
+void RRA();
+void DAA();
 void CPL();
 void SCF();
 // x == 1
 void LD();
 void LD_r_HL();
 void LD_HL_r();
+void HALT();
 // x == 2
 void ADD();
 void ADD_HL();
 void ADC();
+void ADC_HL();
 void SUB();
+void SUB_HL();
 void SBC_A();
+void SBC_A_HL();
 void AND();
+void AND_HL();
 void XOR();
 void XOR_HL();
 void OR();
@@ -139,16 +152,16 @@ void OR_HL();
 void CP();
 void CP_HL();
 // x == 3
-void RET_nc();
 void RET_cc();
 void LD_ff_n_A();
+void ADD_SP_n();
 void LD_A_ff_n();
+void LD_HL_SP_n();
 void POP();
 void RET();
 void RETI();
 void JP_HL();
 void LD_SP_HL();
-void JP_nc_nn();
 void JP_cc_nn();
 void LD_ff_C_A();
 void LD_nni_A();
@@ -157,14 +170,16 @@ void JP_nn();
 void PRFX();
 void DI();
 void EI();
-void CALL_nc();
 void CALL_cc();
 void PUSH();
 void CALL();
 void ADD_n();
 void ADC_n();
 void SUB_n();
+void SBC_A_n();
 void AND_n();
+void XOR_n();
+void OR_n();
 void CP_n();
 void RST();
 void INT40();
@@ -172,12 +187,16 @@ void INT40();
 // Prefixed
 // x == 0
 void RL();
+void RR();
 void SLA();
 void SWAP();
+void SRL();
 // x == 1
 void BIT();
 void BIT_HL();
 // x == 2
 void RES();
+void RES_HL();
 // x == 3
 void SET();
+void SET_HL();

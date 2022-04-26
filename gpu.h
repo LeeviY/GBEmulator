@@ -1,4 +1,4 @@
-#pragma once
+/*#pragma once
 
 #include <stdint.h>
 
@@ -21,13 +21,17 @@ enum GpuMode
 struct Gpu
 {
 	unsigned long clock;
-	int lastClock;
+	unsigned long target;
 	int mode;
-	int line;
+	int scan;
 
-	Byte lcdc;
-	Byte scx;
-	Byte scy;
+	Byte lcdc;	// FF40
+	Byte scy;	// FF42
+	Byte scx;	// FF43
+	Byte ly;	// FF44
+	Byte lyc;	// FF45
+	Byte wy;	// FF4B
+	Byte wx;	// FF4A
 
 } extern gpu;
 
@@ -37,7 +41,7 @@ struct Object
 	Byte x;
 	Byte tile;
 	Byte options;
-} extern obj;
+};
 
 extern const Byte palette[4];
 extern Byte bgPalette[4];
@@ -58,4 +62,4 @@ void stepGPU();
 
 void renderScan();
 
-void updateTile(Word addr);
+void updateTile(Word addr);*/

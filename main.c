@@ -9,14 +9,20 @@
 #include "gpu.h"
 #include "debug.h"
 #include "memory.h"
+#include "joypad.h"
+
+typedef unsigned char Byte;
 
 // Tilemap
 //const unsigned int width = 16 * 8, height = 24 * 8;
 
 // Framebuffer
 unsigned int width = 160, height = 144;
-const int scale = 2;
+//unsigned int width = 256, height = 256;
+const int scale = 4;
 int displayMode = 0;
+
+static time_t begin = 0;
 
 // Draws framebuffer
 void drawFrameBuffer()
@@ -26,26 +32,43 @@ void drawFrameBuffer()
 	glPixelZoom(scale, -scale);
 	glDrawPixels(width, height, GL_RGB, GL_UNSIGNED_BYTE, frameBuffer);
 	glutSwapBuffers();
+
+	//printf("%d\n", 17 - (time(NULL) - begin));
+	Sleep(17 - ((time(NULL) - begin) % 17));
+	begin = time();
+}
+
+void drawMemory()
+{
+	glClear(GL_COLOR_BUFFER_BIT);
+	glRasterPos2f(-1, 1);
+	glPixelZoom(scale, -scale);
+	glDrawPixels(width, height, GL_RGB, GL_UNSIGNED_BYTE, memoryMap);
+	glutSwapBuffers();
 }
 
 // Draws tilemap
 void drawTileMap()
 {
-	glClear(GL_COLOR_BUFFER_BIT);
+	Byte data[192 * 128][3] = { 0 };
 
-	Byte data[24*8][16*8];
-
-	for (int y = 0; y < 8 * 24; ++y)
+	for (int y = 0; y < 192; ++y)
 	{
-		for (int x = 0; x < 8 * 16; ++x)
+		for (int x = 0; x < 128; ++x)
 		{
-			Byte color = tiles[(y / 8) * 16 + (x / 8)][y][x];
-			data[(8 * 24 - 1) - y][x] = color * 85;
+			Byte color = tiles[(y / 8) * 16 + (x / 8)][y % 8][x % 8];
+			data[y * 128 + x][0] = palette[color];
+			data[y * 128 + x][1] = palette[color];
+			data[y * 128 + x][2] = palette[color];
+			//printf("%d\n", color);
 			//printf("%4d %4d\n", (8 * 24 - 1) - y, x);
 		}
 	}
-	glPixelZoom(scale, scale);
-	glDrawPixels(width, height, GL_RED, GL_UNSIGNED_BYTE, data);
+
+	glClear(GL_COLOR_BUFFER_BIT);
+	glRasterPos2f(-1, 1);
+	glPixelZoom(scale, -scale);
+	glDrawPixels(width, height, GL_RGB, GL_UNSIGNED_BYTE, data);
 	glutSwapBuffers();
 }
 
@@ -76,10 +99,15 @@ void swapDisplayMode()
 }
 
 // Event handler for keyboard input
-void keyInputHandler(unsigned char key, int x, int y)
+void keyInputHandler(Byte key, int x, int y)
 {
+	//printf("%c\n", key);
+
 	switch (key) 
 	{
+	case ' ':
+		printf("%d %d %X\n", x / 4 / 8, y / 4 / 8, (y / 4 / 8) * 16 + x / 4 / 8);
+		break;
 	case 's':
 		debugStop = 0;
 		break;
@@ -90,11 +118,24 @@ void keyInputHandler(unsigned char key, int x, int y)
 	case 'd':
 		debugOff();
 		break;
+	case 'r':
+		printToggle();
+		break;
 	case 'f':
 		swapDisplayMode();
 		break;
 	default:
+		inputKeyDown(key);
 		break;
+	}
+}
+
+// Event handler for keyboard input
+void keyInputHandlerUp(Byte key, int x, int y)
+{
+	if (!debugEnable)
+	{
+		inputKeyUp(key);
 	}
 }
 
@@ -106,22 +147,44 @@ int main(int argc, char** argv)
 	initCpu();
 
 	loadBootstrap("dmg_boot.bin");
-	loadRom("Tetris.gb");
+	//loadRom("cpu_instrs/individual/01-special");
+	//loadRom("cpu_instrs/individual/02-interrupts");
+	//loadRom("cpu_instrs/individual/03-op sp,hl");
+	//loadRom("cpu_instrs/individual/04-op r,imm");
+	//loadRom("cpu_instrs/individual/05-op rp");
+	//loadRom("cpu_instrs/individual/06-ld r,r");
+	//loadRom("cpu_instrs/individual/07-jr,jp,call,ret,rst");
+	//loadRom("cpu_instrs/individual/08-misc instrs");
+	loadRom("cpu_instrs/individual/09-op r,r");
+	//loadRom("cpu_instrs/individual/10-bit ops");
+	//loadRom("cpu_instrs/individual/11-op a,(hl");
+
+	//loadRom("tearoom-tests/m2_win_en_toggle");
+
+	//loadRom("dmg-acid2");
+	
+	//loadRom("Tetris");
+	//loadRom("Legend of Zelda");
+	//loadRom("Pokemon_Red");
 
 	// glut window setup
 	glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE);
 	glutInitWindowSize(width * scale, height * scale);
-	glutCreateWindow("GLUT");
+	glutCreateWindow("GameBoy");
 	glClearColor(0, 0, 0, 1);
 
 	// Set glut event callback functions
 	glutIdleFunc(stepCpu);
 	glutDisplayFunc(drawFrameBuffer);
+	//glutDisplayFunc(drawMemory);
 	glutKeyboardFunc(keyInputHandler);
+	glutKeyboardUpFunc(keyInputHandlerUp);
 
 	// Start with tilemap
 	//swapDisplayMode();
+
+	begin = time(NULL);
 
 	glutMainLoop();
 

@@ -1,6 +1,8 @@
 #include "cpu.h"
 #include "tables.h"
 #include "debug.h"
+#include "time.h"
+#include "joypad.h"
 
 struct OpcodeTable opcodeTable =
 {
@@ -11,13 +13,13 @@ struct OpcodeTable opcodeTable =
 
 	.unPrefixed =
 	{
-		NOP,		LD_rp_nn,	LD_rpi_A,	INC_rp,		INC,		DEC,		LD_n,		7,
+		NOP,		LD_rp_nn,	LD_rpi_A,	INC_rp,		INC,		DEC,		LD_n,		RLCA,
 		LD_nni_SP,	ADD_HL_rp,	LD_A_rpi,	DEC_rp,		INC,		DEC,		LD_n,		RRCA,
 		STOP,		LD_rp_nn,	LD_rpi_A,	INC_rp,		INC,		DEC,		LD_n,		RLA,
-		JR_n,		ADD_HL_rp,	LD_A_rpi,	DEC_rp,		INC,		DEC,		LD_n,		31,
-		JR_nc_n,	LD_rp_nn,	LDI_HL_A,	INC_rp,		INC,		DEC,		LD_n,		39,
+		JR_n,		ADD_HL_rp,	LD_A_rpi,	DEC_rp,		INC,		DEC,		LD_n,		RRA,
+		JR_cc_n,	LD_rp_nn,	LDI_HL_A,	INC_rp,		INC,		DEC,		LD_n,		DAA,
 		JR_cc_n,	ADD_HL_rp,	LDI_A_HL,	DEC_rp,		INC,		DEC,		LD_n,		CPL,
-		JR_nc_n,	LD_rp_nn,	LDD_HL_A,	INC_rp,		INC_HL,		DEC_HL,		LD_HL_n,	55,
+		JR_cc_n,	LD_rp_nn,	LDD_HL_A,	INC_rp,		INC_HL,		DEC_HL,		LD_HL_n,	SCF,
 		JR_cc_n,	ADD_HL_rp,	LDD_A_HL,	DEC_rp,		INC,		DEC,		LD_n,		63,
 
 		LD,			LD,			LD,			LD,			LD,			LD,			LD_r_HL,	LD,
@@ -26,49 +28,49 @@ struct OpcodeTable opcodeTable =
 		LD,			LD,			LD,			LD,			LD,			LD,			LD_r_HL,	LD,
 		LD,			LD,			LD,			LD,			LD,			LD,			LD_r_HL,	LD,
 		LD,			LD,			LD,			LD,			LD,			LD,			LD_r_HL,	LD,
-		LD_HL_r,	LD_HL_r,	LD_HL_r,	LD_HL_r,	LD_HL_r,	LD_HL_r,	118,		LD_HL_r,
-		LD,			LD,			LD,			LD,			LD,			LD,			LD,			LD,
+		LD_HL_r,	LD_HL_r,	LD_HL_r,	LD_HL_r,	LD_HL_r,	LD_HL_r,	HALT,		LD_HL_r,
+		LD,			LD,			LD,			LD,			LD,			LD,			LD_r_HL,	LD,
 
 		ADD,		ADD,		ADD,		ADD,		ADD,		ADD,		ADD_HL,		ADD,
-		ADC,		ADC,		ADC,		ADC,		ADC,		ADC,		142,		ADC,
-		SUB,		SUB,		SUB,		SUB,		SUB,		SUB,		SUB,		SUB,
-		SBC_A,		SBC_A,		SBC_A,		SBC_A,		SBC_A,		SBC_A,		158,		SBC_A,
-		AND,		AND,		AND,		AND,		AND,		AND,		166,		AND,
+		ADC,		ADC,		ADC,		ADC,		ADC,		ADC,		ADC_HL,		ADC,
+		SUB,		SUB,		SUB,		SUB,		SUB,		SUB,		SUB_HL,		SUB,
+		SBC_A,		SBC_A,		SBC_A,		SBC_A,		SBC_A,		SBC_A,		SBC_A_HL,	SBC_A,
+		AND,		AND,		AND,		AND,		AND,		AND,		AND_HL,		AND,
 		XOR,		XOR,		XOR,		XOR,		XOR,		XOR,		XOR_HL,		XOR,
 		OR,			OR,			OR,			OR,			OR,			OR,			OR_HL,		OR,
 		CP,			CP,			CP,			CP,			CP,			CP,			CP_HL,		CP,
 
-		RET_nc,		POP,		JP_nc_nn,	JP_nn,		CALL_nc,	PUSH,		ADD_n,		RST,
+		RET_cc,		POP,		JP_cc_nn,	JP_nn,		CALL_cc,	PUSH,		ADD_n,		RST,
 		RET_cc,		RET,		JP_cc_nn,	PRFX,		CALL_cc,	CALL,		ADC_n,		RST,
-		RET_nc,		POP,		JP_nc_nn,	UNDEF,		CALL_nc,	PUSH,		SUB_n,		RST,
-		RET_cc,		RETI,		JP_cc_nn,	UNDEF,		CALL_cc,	UNDEF,		222,		RST,
+		RET_cc,		POP,		JP_cc_nn,	UNDEF,		CALL_cc,	PUSH,		SUB_n,		RST,
+		RET_cc,		RETI,		JP_cc_nn,	UNDEF,		CALL_cc,	UNDEF,		SBC_A_n,	RST,
 		LD_ff_n_A,	POP,		LD_ff_C_A,	UNDEF,		UNDEF,		PUSH,		AND_n,		RST,
-		232,		JP_HL,		LD_nni_A,	UNDEF,		UNDEF,		UNDEF,		238,		RST,
-		LD_A_ff_n,	POP,		242,		DI,			UNDEF,		PUSH,		246,		RST,
-		248,		LD_SP_HL,	LD_A_nni,	EI,			UNDEF,		UNDEF,		CP_n,		RST,
+		ADD_SP_n,	JP_HL,		LD_nni_A,	UNDEF,		UNDEF,		UNDEF,		XOR_n,		RST,
+		LD_A_ff_n,	POP,		242,		DI,			UNDEF,		PUSH,		OR_n,		RST,
+		LD_HL_SP_n,	LD_SP_HL,	LD_A_nni,	EI,			UNDEF,		UNDEF,		CP_n,		RST,
 	},
 
 	.cbPrefixed =
 	{
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		RL, RL, RL, RL, RL, RL, 0, RL, 0, 0, 0, 0, 0, 0, 0, 0,
+		RL, RL, RL, RL, RL, RL, 0, RL, RR, RR, RR, RR, RR, RR, 0, RR,
 		SLA, SLA, SLA, SLA, SLA, SLA, 0, SLA, 0, 0, 0, 0, 0, 0, 0, 0,
-		SWAP, SWAP, SWAP, SWAP, SWAP, SWAP, 0, SWAP, 0, 0, 0, 0, 0, 0, 0, 0,
+		SWAP, SWAP, SWAP, SWAP, SWAP, SWAP, 0, SWAP, SRL, SRL, SRL, SRL, SRL, SRL, 0, SRL,
 
-		BIT, BIT, BIT, BIT, BIT, BIT, BIT, BIT, BIT, BIT, BIT, BIT, BIT, BIT, BIT_HL, BIT,
-		BIT, BIT, BIT, BIT, BIT, BIT, BIT, BIT, BIT, BIT, BIT, BIT, BIT, BIT, BIT_HL, BIT,
-		BIT, BIT, BIT, BIT, BIT, BIT, BIT, BIT, BIT, BIT, BIT, BIT, BIT, BIT, BIT_HL, BIT,
-		BIT, BIT, BIT, BIT, BIT, BIT, BIT, BIT, BIT, BIT, BIT, BIT, BIT, BIT, BIT_HL, BIT,
+		BIT, BIT, BIT, BIT, BIT, BIT, BIT_HL, BIT, BIT, BIT, BIT, BIT, BIT, BIT, BIT_HL, BIT,
+		BIT, BIT, BIT, BIT, BIT, BIT, BIT_HL, BIT, BIT, BIT, BIT, BIT, BIT, BIT, BIT_HL, BIT,
+		BIT, BIT, BIT, BIT, BIT, BIT, BIT_HL, BIT, BIT, BIT, BIT, BIT, BIT, BIT, BIT_HL, BIT,
+		BIT, BIT, BIT, BIT, BIT, BIT, BIT_HL, BIT, BIT, BIT, BIT, BIT, BIT, BIT, BIT_HL, BIT,
 
-		RES, RES, RES, RES, RES, RES, RES, RES, RES, RES, RES, RES, RES, RES, 0, RES,
-		RES, RES, RES, RES, RES, RES, RES, RES, RES, RES, RES, RES, RES, RES, 0, RES,
-		RES, RES, RES, RES, RES, RES, RES, RES, RES, RES, RES, RES, RES, RES, 0, RES,
-		RES, RES, RES, RES, RES, RES, RES, RES, RES, RES, RES, RES, RES, RES, 0, RES,
+		RES, RES, RES, RES, RES, RES, RES_HL, RES, RES, RES, RES, RES, RES, RES, RES_HL, RES,
+		RES, RES, RES, RES, RES, RES, RES_HL, RES, RES, RES, RES, RES, RES, RES, RES_HL, RES,
+		RES, RES, RES, RES, RES, RES, RES_HL, RES, RES, RES, RES, RES, RES, RES, RES_HL, RES,
+		RES, RES, RES, RES, RES, RES, RES_HL, RES, RES, RES, RES, RES, RES, RES, RES_HL, RES,
 
-		SET, SET, SET, SET, SET, SET, SET, SET, SET, SET, SET, SET, SET, SET, 0, SET,
-		SET, SET, SET, SET, SET, SET, SET, SET, SET, SET, SET, SET, SET, SET, 0, SET,
-		SET, SET, SET, SET, SET, SET, SET, SET, SET, SET, SET, SET, SET, SET, 0, SET,
-		SET, SET, SET, SET, SET, SET, SET, SET, SET, SET, SET, SET, SET, SET, 0, SET
+		SET, SET, SET, SET, SET, SET, SET_HL, SET, SET, SET, SET, SET, SET, SET, SET_HL, SET,
+		SET, SET, SET, SET, SET, SET, SET_HL, SET, SET, SET, SET, SET, SET, SET, SET_HL, SET,
+		SET, SET, SET, SET, SET, SET, SET_HL, SET, SET, SET, SET, SET, SET, SET, SET_HL, SET,
+		SET, SET, SET, SET, SET, SET, SET_HL, SET, SET, SET, SET, SET, SET, SET, SET_HL, SET,
 	}
 };
 
@@ -80,11 +82,11 @@ struct Interrupt interrupt;
 
 void parseOpCode(struct OpCode* opCode, int hex)
 {
-	opCode->x = hex >> 6;		//11000000
-	opCode->y = hex >> 3 & 7;	//00111000
-	opCode->z = hex & 7;		//00000111
-	opCode->p = opCode->y >> 1; //00110111
-	opCode->q = opCode->y & 1;	//00001000
+	opCode->x = (hex & 0x11000000) >> 6;
+	opCode->y = (hex & 0b00111000) >> 3;
+	opCode->z =  hex & 0b00000111;
+	opCode->p = (hex & 0b00110000) >> 4;
+	opCode->q = (hex & 0b00001000) >> 3;
 }
 
 void initCpu()
@@ -109,6 +111,8 @@ void initCpu()
 	resetCpu();
 }
 
+Word seenPCs[0x2000];
+
 void resetCpu()
 {
 	for (int i = 0; i < 8; ++i)
@@ -126,12 +130,22 @@ void resetCpu()
 	cpu.prefix = 0;
 	cpu.stopped = 0;
 
-	resetGpu();
+	resetPpu();
+
+	for (int i = 0; i < 0x2000; ++i)
+	{
+		seenPCs[i] = 0x8000;
+	}
 }
 
 void memoryDump()
 {
 	Byte* memoryMirror = (Byte*)malloc(0x10000 * sizeof(Byte));
+
+	if (!memoryMirror)
+	{
+		return;
+	}
 
 	for (int i = 0; i < 0xFFFF + 1; ++i)
 	{
@@ -143,15 +157,11 @@ void memoryDump()
 }
 
 // Debugger breakpoint
-//Word bp = 0x029A;
-//Word bp = 0x27A3;
-Word bp = 0x1D5;
-//Word bp = 0x02FA;
+//Word bp = 0x29A6; Read keys
+//Word bp = 0x02F5;
+Word bp = -1;
 
-
-Word ei0 = 0x1172;
-Word ei1 = 0xD8;
-Word ei2 = 0x2BA;
+const static int multiplier = 4;
 
 void stepCpu()
 {
@@ -159,26 +169,38 @@ void stepCpu()
 	if (cpu.stopped || debugStop)
 		return;
 
-	//if (reg.PC == ei0 || reg.PC == ei1 || reg.PC == ei2)
-	{
-		//debugOn(bp);
-	}
-
 	if (reg.PC == bp)
 	{
 		debugOn(bp);
 	}
 
+	// Print all seen PCs
+	for (int i = 0; i < 0x2000 && !inbios; ++i)
+	{
+		if (seenPCs[i] == reg.PC)
+		{
+			break;
+		}
+		else if (seenPCs[i] == 0x8000)
+		{
+			seenPCs[i] = reg.PC;
+			printf("%04X\n", reg.PC);
+			break;
+		}
+	}
+	/*memoryMap[reg.PC][0] = 255;
+	memoryMap[reg.PC][1] = 0;
+	memoryMap[reg.PC][2] = 0;*/
+
 	// Get op
-	Byte op = rb(reg.PC);
-	reg.PC++;
+	Byte op = rb(reg.PC++);
 
 	// Get opcode
 	parseOpCode(&opcode, op);
-	
-	if (debugEnable)
+
+	if (debugEnable || debugPrint)
 	{
-		printf("0x%04X OPC=0x%02X \"", reg.PC - 1, op);
+		printf("0x%04X | OPC=0x%02X \"", reg.PC - 1, op);
 		int count = 0;
 		switch (numbers[op])
 		{
@@ -186,19 +208,17 @@ void stepCpu()
 			count = printf(opNames[op]);
 			break;
 		case 1:
-			count = printf(opNames[op], nextByte());
-			reg.PC--;
+			count = printf(opNames[op], rb(reg.PC));
 			break;
 		case 2:
-			count = printf(opNames[op], nextWord());
-			reg.PC -= 2;
+			count = printf(opNames[op], rw(reg.PC));
 			break;
 		}
 		printf("\"%*c", 24 - count, ' ');
 		//printf("x=%d z=%d y=%d q=%d p=%d ", opcode.x, opcode.z, opcode.y, opcode.q, opcode.p);
 		printf("A=%02X F=%02X B=%02X C=%02X D=%02X E=%02X H=%02X L=%02X (HL)=%02X PC=%04X SP=%04X (SP)=%02X", reg.A, reg.F, reg.B, reg.C, reg.D, reg.E, reg.H, reg.L, rb(reg.HL), reg.PC, reg.SP, rb(reg.SP));
-		printf(" IM=%02x IE=%02x IF=%02x ", interrupt.master, interrupt.enable, interrupt.flags);
-		printf("gpu clock=%3d mode=%d liney=%3d\n", gpu.clock, gpu.mode, gpu.line);
+		printf(" | IM=%02x IE=%02x IF=%02x", interrupt.master, interrupt.enable, interrupt.flags);
+		printf(" | gpu clock=%3d mode=%d ly=%3d\n", ppu.clock, ppu.mode, ppu.ly);
 	}
 
 	// Check if last operation was 0xCB/prefix
@@ -217,8 +237,12 @@ void stepCpu()
 		cpu.clock += insTicks[op];
 	}
 
-	stepGPU();
+	stepPpu();
 	checkInterrupt();
+
+	//printf("IM=%02x IE=%02x IF=%02x\n", interrupt.master, interrupt.enable, interrupt.flags & INT_JOYPAD);
+
+	cpu.clock = 0;
 
 	// Breakpoint toggle
 	if (debugEnable)
@@ -231,30 +255,55 @@ void checkInterrupt()
 {
 	if (interrupt.master && interrupt.enable && interrupt.flags)
 	{
+		//printf("%X %X %X\n", interrupt.master, interrupt.enable, interrupt.flags);
 		Byte toggle = interrupt.enable & interrupt.flags;
 
-		if (toggle & VBLANK)
+		if (toggle & INT_VBLANK)
 		{
-			interrupt.flags &= ~VBLANK;
-			reDisplay();
+			interrupt.flags &= ~INT_VBLANK;
+			//reDisplay();
 
-			INT40();
+			interrupt.master = 0;
+			wwToStack(reg.PC);
+			reg.PC = 0x40;
+
+			cpu.clock += 12;
 		}
-		else if (toggle & LCD_STAT)
+		if (toggle & INT_LCD_STAT)
 		{
-			NOP();
+			interrupt.flags &= ~INT_LCD_STAT;
+			interrupt.master = 0;
+			wwToStack(reg.PC);
+			reg.PC = 0x48;
+
+			cpu.clock += 12;
 		}
-		else if (toggle & TIMER)
+		if (toggle & INT_TIMER)
 		{
-			NOP();
+			interrupt.flags &= ~INT_TIMER;
+			interrupt.master = 0;
+			wwToStack(reg.PC);
+			reg.PC = 0x50;
+
+			cpu.clock += 12;
 		}
-		else if (toggle & SERIAL)
+		if (toggle & INT_SERIAL)
 		{
-			NOP();
+			interrupt.flags &= ~INT_SERIAL;
+			interrupt.master = 0;
+			wwToStack(reg.PC);
+			reg.PC = 0x58;
+
+			cpu.clock += 12;
 		}
-		else if (toggle & JOYPAD)
+		if (toggle & INT_JOYPAD)
 		{
-			NOP();
+			interrupt.flags &= ~INT_JOYPAD;
+			interrupt.master = 0;
+			wwToStack(reg.PC);
+			reg.PC = 0x60;
+
+			cpu.clock += 12;
 		}
 	}
 }
@@ -291,28 +340,14 @@ void JR_n()
 	reg.PC += a - 1;*/
 }
 
-void JR_nc_n()
-{
-	if (!(reg.F & opcodeTable.cc[opcode.y - 4]))
-	{
-		reg.PC += (signed char)nextByte();
-		//reg.PC += (signed char)nextByte() - 1;
-
-		cpu.clock += 1;
-	}
-	else
-	{
-		reg.PC++;
-	}
-}
-
 void JR_cc_n()
 {
-	if (reg.F & opcodeTable.cc[opcode.y - 4])
+	int cc = reg.F & opcodeTable.cc[opcode.y - 4];
+	if ((opcode.y % 2 == 0 ? !cc : cc))
 	{
 		reg.PC += (signed char)nextByte();
 
-		cpu.clock += 1;
+		cpu.clock += 1 * multiplier;
 	}
 	else
 	{
@@ -359,12 +394,12 @@ void LD_A_rpi()
 
 void LDI_A_HL()
 {
-	wb(reg.A, rb(reg.HL++));
+	reg.A = rb(reg.HL++);
 }
 
 void LDD_A_HL()
 {
-	wb(reg.A, rb(reg.HL--));
+	reg.A = rb(reg.HL--);
 }
 
 void INC_rp()
@@ -425,6 +460,22 @@ void LD_HL_n()
 	wb(reg.HL, nextByte());
 }
 
+void RLCA()
+{
+	Byte carry = (reg.A & 0x80) >> 7;
+
+	SETFZ(0);
+	SETFN(0);
+	SETFH(0);
+	SETFC(carry);
+
+	reg.A <<= 1;
+	if (carry)
+	{
+		reg.A += carry;
+	}
+}
+
 void RRCA()
 {
 	Byte carry = reg.A & 0x01;
@@ -453,6 +504,52 @@ void RLA()
 	reg.A += carry;
 }
 
+void RRA()
+{
+	int carry = (ISFC ? 1 : 0) << 7;
+
+	SETFZ(1);
+	SETFN(1);
+	SETFH(1);
+	SETFC(reg.A & 1);
+	reg.A >>= 1;
+	reg.A += carry;
+}
+
+void DAA()
+{
+	Word val = reg.A;
+
+	if (ISFN)
+	{
+		if (ISFH)
+		{
+			val = (val - 0x06) & 0xFF;
+		}
+		if (ISFC)
+		{
+			val -= 0x60;
+		}
+	}
+	else 
+	{
+		if (ISFH || (val & 0xF) > 9)
+		{
+			val += 0x06;
+		}
+		if (ISFC || val > 0x9F)
+		{
+			val += 0x60;
+		}
+	}
+
+	reg.A = val;
+	SETFH(0);
+
+	SETFZ(!reg.A);
+	SETFC(val >= 0x100);
+}
+
 void CPL()
 {
 	reg.A ^= 0xFF;
@@ -462,7 +559,9 @@ void CPL()
 
 void SCF()
 {
-
+	SETFC(1);
+	SETFN(0);
+	SETFH(0);
 }
 
 // ============================================================================
@@ -481,6 +580,14 @@ void LD_r_HL()
 void LD_HL_r()
 {
 	wb(reg.HL, *reg.r[opcode.z]);
+}
+
+void HALT()
+{
+	if (!interrupt.flags) 
+	{
+		reg.PC--;
+	}
 }
 
 // ============================================================================
@@ -521,9 +628,34 @@ void ADC()
 	reg.A = (Byte)(result & 0xFF);
 }
 
+void ADC_HL()
+{
+	Byte val = rb(reg.HL) + (ISFC ? 1 : 0);
+	unsigned int result = reg.A + val;
+
+	SETFZ(val == reg.A);
+	SETFN(1);
+	SETFH(((reg.A & 0x0F) + (val & 0x0F)) > 0x0F);
+	SETFC(result & 0xFF00);
+
+	reg.A = (Byte)(result & 0xFF);
+}
+
 void SUB()
 {
 	Byte val = *reg.r[opcode.z];
+
+	SETFN(1);
+	SETFH((val & 0x0F) > (reg.A & 0x0F));
+	SETFC(val > reg.A);
+
+	reg.A -= val;
+	SETFZ(!reg.A);
+}
+
+void SUB_HL()
+{
+	Byte val = rb(reg.HL);
 
 	SETFN(1);
 	SETFH((val & 0x0F) > (reg.A & 0x0F));
@@ -546,9 +678,32 @@ void SBC_A()
 	reg.A -= val;
 }
 
+void SBC_A_HL()
+{
+	Byte val = rb(reg.HL);
+	val += ISFC ? 1 : 0;
+
+	SETFZ(val == reg.A);
+	SETFN(1);
+	SETFH((val & 0x0F) > (reg.A & 0x0F));
+	SETFC(val > reg.A);
+
+	reg.A -= val;
+}
+
 void AND()
 {
 	reg.A &= *reg.r[opcode.z];
+
+	SETFZ(!reg.A);
+	SETFN(0);
+	SETFH(1);
+	SETFC(0);
+}
+
+void AND_HL()
+{
+	reg.A &= rb(reg.HL);
 
 	SETFZ(!reg.A);
 	SETFN(0);
@@ -616,25 +771,15 @@ void CP_HL()
 // ============================================================================
 // x == 3
 // ============================================================================
-void RET_nc()
-{
-	if (!(reg.F & opcodeTable.cc[opcode.y]))
-	{
-		reg.PC = rwFromStack();
-		reg.PC += 3;
-
-		cpu.clock += 4;
-	}
-}
-
 void RET_cc()
 {
-	if (reg.F & opcodeTable.cc[opcode.y])
+	int cc = reg.F & opcodeTable.cc[opcode.y];
+	if ((opcode.y % 2 == 0 ? !cc : cc))
 	{
 		reg.PC = rwFromStack();
 		reg.PC += 3;
 
-		cpu.clock += 4;
+		cpu.clock += 3 * multiplier;
 	}
 }
 
@@ -643,9 +788,35 @@ void LD_ff_n_A()
 	wb(0xFF00 + nextByte(), reg.A);
 }
 
+void ADD_SP_n()
+{
+	int val = nextByte();
+	int res = reg.SP + val;
+
+	SETFC(res & 0xF0);
+	reg.SP = res & 0xFFFF;
+
+	SETFZ(0);
+	SETFN(0);
+	SETFH((reg.SP & 0x0F) + (val & 0x0F) > 0x0F);
+}
+
 void LD_A_ff_n()
 {
 	reg.A = rb(0xFF00 + nextByte());
+}
+
+void LD_HL_SP_n()
+{
+	int val = nextByte();
+	int res = reg.SP + (signed char)val;
+
+	SETFZ(0);
+	SETFN(0);
+	SETFH((reg.SP & 0x0F) + (val & 0x0F) > 0x0F);
+	SETFC(res & 0xF0);
+
+	reg.HL = (int16_t)(res & 0xFFFF);
 }
 
 void POP()
@@ -661,13 +832,14 @@ void RET()
 
 void RETI()
 {
-	EI();
-	RET();
+	reg.PC = rwFromStack();
+	interrupt.master = 1;
 }
 
 void JP_HL()
 {
-	reg.PC = rb(reg.HL);
+	//reg.PC = rb(reg.HL);
+	reg.PC = reg.HL;
 }
 
 void LD_SP_HL()
@@ -675,23 +847,14 @@ void LD_SP_HL()
 	reg.SP = reg.HL;
 }
 
-void JP_nc_nn()
-{
-	if (!(reg.F & opcodeTable.cc[opcode.y]))
-	{
-		reg.PC = nextWord();
-	}
-	else
-	{
-		reg.PC += 2;
-	}
-}
-
 void JP_cc_nn()
 {
-	if (reg.F & opcodeTable.cc[opcode.y])
+	int cc = reg.F & opcodeTable.cc[opcode.y];
+	if ((opcode.y % 2 == 0 ? !cc : cc))
 	{
 		reg.PC = nextWord();
+
+		cpu.clock += 1 * multiplier;
 	}
 	else
 	{
@@ -734,23 +897,15 @@ void EI()
 	interrupt.master = 1;
 }
 
-void CALL_nc()
-{
-	if (!(reg.F & opcodeTable.cc[opcode.y]))
-	{
-		wwToStack(reg.PC - 1);
-		reg.PC = nextWord();
-		cpu.clock += 3;
-	}
-}
-
 void CALL_cc()
 {
-	if (reg.F & opcodeTable.cc[opcode.y])
+	int cc = reg.F & opcodeTable.cc[opcode.y];
+	if ((opcode.y % 2 == 0 ? !cc : cc))
 	{
 		wwToStack(reg.PC - 1);
 		reg.PC = nextWord();
-		cpu.clock += 3;
+
+		cpu.clock += 3 * multiplier;
 	}
 }
 
@@ -767,18 +922,19 @@ void CALL()
 
 void ADD_n()
 {
-	unsigned int result = reg.A + rb(*reg.r[opcode.z]);
+	Byte val = nextByte();
+	unsigned int result = reg.A + val;
 	reg.A = (Byte)(result & 0xFF);
 
 	SETFZ(!reg.A);
 	SETFN(0);
-	SETFH(((reg.A & 0x0F) + (*reg.r[opcode.z] & 0x0F)) > 0x0F);
+	SETFH(((reg.A & 0x0F) + (val & 0x0F)) > 0x0F);
 	SETFC(result & 0xFF00);
 }
 
 void ADC_n()
 {
-	Byte val = rb(*reg.r[opcode.z]) + (ISFC ? 1 : 0);
+	Byte val = nextByte() + (ISFC ? 1 : 0);
 	unsigned int result = reg.A + val;
 
 	SETFZ(val == reg.A);
@@ -801,6 +957,19 @@ void SUB_n()
 	SETFZ(!reg.A);
 }
 
+void SBC_A_n()
+{
+	Byte val = nextByte();
+	val += ISFC ? 1 : 0;
+
+	SETFZ(val == reg.A);
+	SETFN(1);
+	SETFH((val & 0x0F) > (reg.A & 0x0F));
+	SETFC(val > reg.A);
+
+	reg.A -= val;
+}
+
 void AND_n()
 {
 	reg.A &= nextByte();
@@ -808,6 +977,26 @@ void AND_n()
 	SETFZ(!reg.A);
 	SETFN(0);
 	SETFH(1);
+	SETFC(0);
+}
+
+void XOR_n()
+{
+	reg.A ^= nextByte();
+
+	SETFZ(!reg.A);
+	SETFN(0);
+	SETFH(0);
+	SETFC(0);
+}
+
+void OR_n()
+{
+	reg.A |= nextByte();
+
+	SETFZ(!reg.A);
+	SETFN(0);
+	SETFH(0);
 	SETFC(0);
 }
 
@@ -827,15 +1016,6 @@ void RST()
 	reg.PC = opcode.y * 8;
 	//reg.PC += 3;
 }
-
-void INT40()
-{
-	interrupt.master = 0;
-	wwToStack(reg.PC - 1);
-	reg.PC = 0x40;
-
-	cpu.clock += 12;
-}
 // ============================================================================
 // CB
 // ============================================================================
@@ -850,6 +1030,21 @@ void RL()
 	*reg.r[opcode.z] <<= 1;
 	*reg.r[opcode.z] += carry;
 	SETFZ(!*reg.r[opcode.z]);
+}
+
+void RR()
+{
+	*reg.r[opcode.z] >>= 1;
+
+	if (ISFC)
+	{
+		*reg.r[opcode.z] |= 0x80;
+	}
+
+	SETFZ(!*reg.r[opcode.z]);
+	SETFN(0);
+	SETFH(0);
+	SETFC(*reg.r[opcode.z] & 1);
 }
 
 void SLA()
@@ -871,6 +1066,17 @@ void SWAP()
 	SETFC(0);
 }
 
+void SRL()
+{
+	SETFC(*reg.r[opcode.z] & 0x01);
+
+	*reg.r[opcode.z] >>= 1;
+
+	SETFZ(*reg.r[opcode.z]);
+	SETFN(0);
+	SETFH(0);
+}
+
 void BIT()
 {
 	SETFZ(!(*reg.r[opcode.z] & (1 << opcode.y)));
@@ -887,10 +1093,20 @@ void BIT_HL()
 
 void RES()
 {
-	*reg.r[opcode.z] |= ~(1 << opcode.y);
+	*reg.r[opcode.z] &= ~(1 << opcode.y);
+}
+
+void RES_HL()
+{
+	wb(reg.HL, rb(reg.HL) & ~(1 << opcode.y));
 }
 
 void SET()
 {
 	*reg.r[opcode.z] |= (1 << opcode.y);
+}
+
+void SET_HL()
+{
+	wb(reg.HL, rb(reg.HL) | (1 << opcode.y));
 }

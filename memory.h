@@ -12,7 +12,9 @@ extern Byte _eram[0x2000];	// Echo ram
 extern Byte _io[0x100];		// IO
 extern Byte _zram[0x80];	// Zero page
 
-extern int _inbios;
+extern Byte memoryMap[0xFFFF][3];
+
+extern int inbios;
 
 // Loads bootstrap rom from file to _bios
 void loadBootstrap(char* fileName);
@@ -20,7 +22,7 @@ void loadBootstrap(char* fileName);
 // Loads rom from file to _rom
 void loadRom(char* fileName);
 
-void copy(Word destination, Word source, size_t length);
+void copyDma(Word destination, Word source, size_t length);
 
 // Read byte from given memory address
 Byte rb(Word addr);
