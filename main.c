@@ -34,8 +34,8 @@ void drawFrameBuffer()
 	glutSwapBuffers();
 
 	//printf("%d\n", 17 - (time(NULL) - begin));
-	Sleep(17 - ((time(NULL) - begin) % 17));
-	begin = time();
+	//Sleep(17 - ((time(NULL) - begin) % 17));
+	//begin = time();
 }
 
 void drawMemory()
@@ -105,6 +105,10 @@ void keyInputHandler(Byte key, int x, int y)
 
 	switch (key) 
 	{
+	case 27:
+		exit(0);
+		glutDestroyWindow("GameBoy");
+		break;
 	case ' ':
 		printf("%d %d %X\n", x / 4 / 8, y / 4 / 8, (y / 4 / 8) * 16 + x / 4 / 8);
 		break;
@@ -139,6 +143,18 @@ void keyInputHandlerUp(Byte key, int x, int y)
 	}
 }
 
+static int remain = 0;
+void cycleCpu(int a)
+{
+	glutTimerFunc(17, cycleCpu, 0);
+	int i = remain;
+	for (;i < 70224;i += cpu.clock)
+	{
+		stepCpu();
+	}
+	remain = i - 70224;
+}
+
 int main(int argc, char** argv)
 {
 	printf("%s", "Hello World!\n");
@@ -147,20 +163,19 @@ int main(int argc, char** argv)
 	initCpu();
 
 	loadBootstrap("dmg_boot.bin");
-	//loadRom("cpu_instrs/individual/01-special");
+	//loadRom("cpu_instrs/individual/01-special");	//*
 	//loadRom("cpu_instrs/individual/02-interrupts");
-	//loadRom("cpu_instrs/individual/03-op sp,hl");
-	//loadRom("cpu_instrs/individual/04-op r,imm");
-	//loadRom("cpu_instrs/individual/05-op rp");
+	loadRom("cpu_instrs/individual/03-op sp,hl");
+	//loadRom("cpu_instrs/individual/04-op r,imm");	//*
+	//loadRom("cpu_instrs/individual/05-op rp");	//*
 	//loadRom("cpu_instrs/individual/06-ld r,r");
-	//loadRom("cpu_instrs/individual/07-jr,jp,call,ret,rst");
-	//loadRom("cpu_instrs/individual/08-misc instrs");
-	loadRom("cpu_instrs/individual/09-op r,r");
+	//loadRom("cpu_instrs/individual/07-jr,jp,call,ret,rst");	//*
+	//loadRom("cpu_instrs/individual/08-misc instrs");	//*
+	//loadRom("cpu_instrs/individual/09-op r,r");	//*
 	//loadRom("cpu_instrs/individual/10-bit ops");
-	//loadRom("cpu_instrs/individual/11-op a,(hl");
+	//loadRom("cpu_instrs/individual/11-op a,(hl)");
 
-	//loadRom("tearoom-tests/m2_win_en_toggle");
-
+	//loadRom("cpu_instrs/cpu_instrs");
 	//loadRom("dmg-acid2");
 	
 	//loadRom("Tetris");
@@ -175,16 +190,17 @@ int main(int argc, char** argv)
 	glClearColor(0, 0, 0, 1);
 
 	// Set glut event callback functions
-	glutIdleFunc(stepCpu);
+	//glutIdleFunc(stepCpu);
 	glutDisplayFunc(drawFrameBuffer);
 	//glutDisplayFunc(drawMemory);
 	glutKeyboardFunc(keyInputHandler);
 	glutKeyboardUpFunc(keyInputHandlerUp);
+	glutTimerFunc(0, cycleCpu, 0);
 
 	// Start with tilemap
 	//swapDisplayMode();
 
-	begin = time(NULL);
+	//begin = time(NULL);
 
 	glutMainLoop();
 

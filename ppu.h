@@ -27,6 +27,7 @@ enum
 	STAT_VBLANK_ENABLE = (1 << 4),
 	STAT_HBLANK_ENABLE = (1 << 3),
 	STAT_LY_FLAG = (1 << 2),
+	// 0 and 1 are modes
 };
 
 enum

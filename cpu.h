@@ -165,6 +165,7 @@ void LD_SP_HL();
 void JP_cc_nn();
 void LD_ff_C_A();
 void LD_nni_A();
+void LD_A_ff_C();
 void LD_A_nni();
 void JP_nn();
 void PRFX();
@@ -186,11 +187,14 @@ void INT40();
 
 // Prefixed
 // x == 0
+void RLC();
+void RLC_HL();
 void RL();
 void RR();
 void SLA();
 void SWAP();
 void SRL();
+void SRL_HL();
 // x == 1
 void BIT();
 void BIT_HL();

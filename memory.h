@@ -34,9 +34,9 @@ void wb(Word addr, Byte val);
 void ww(Word addr, Word val);
 
 // Read two bytes from top of the stack
-Word rwFromStack();
+Word popFromStack();
 // Write two bytes to top of the stack
-void wwToStack(Word val);
+void pushToStack(Word val);
 
 // Gets one operand
 Word nextByte();

@@ -110,14 +110,16 @@ Byte rb(Word addr)
 
 	else if (addr == 0xFF00)
 	{
+		Byte val;
 		if ((joypad.select & (1 << 4)) == 0)
 		{
-			return joypad.select | (joypad.keys & 0x0F);
+			val = joypad.select | (joypad.keys & 0x0F);
 		}
 		else if ((joypad.select & (1 << 5)) == 0)
 		{
-			return joypad.select | (joypad.keys >> 4);
+			val = joypad.select | (joypad.keys >> 4);
 		}
+		return val;
 	}
 
 	else if (addr == 0xFF04)
@@ -137,7 +139,7 @@ Byte rb(Word addr)
 
 	else if (addr == 0xFF41)
 	{
-		return ppu.stat;
+		return ppu.stat & 0xFC | ppu.mode;
 	}
 
 	else if (addr == 0xFF42)
@@ -168,6 +170,11 @@ Byte rb(Word addr)
 	else if (addr == 0xFF4B)
 	{
 		return ppu.wx;
+	}
+
+	else if (addr == 0xFF4D || addr == 0xFF74)
+	{
+		return 0xFF;
 	}
 
 	else if (addr > 0xFF00 && addr < 0xFF80)
@@ -243,6 +250,11 @@ void wb(Word addr, Byte val)
 		joypad.select = val; // Mask off bottom 4 bits
 	}
 
+	if (addr == 0xFF02 && val == 0x81)
+	{
+		//printf("%X\n", rb(0xFF01));
+	}
+
 	else if (addr == 0xFF0F)
 	{
 		interrupt.flags = val;
@@ -268,6 +280,8 @@ void wb(Word addr, Byte val)
 	{
 		ppu.scx = val;
 	}
+
+	//FF44 ly read only
 		
 	else if (addr == 0xFF45)
 	{
@@ -281,6 +295,7 @@ void wb(Word addr, Byte val)
 
 	else if (addr == 0xFF47)
 	{
+		
 		for (int i = 0; i < 4; ++i)
 		{
 			bgPalette[i] = palette[(val >> (i * 2)) & 3];
@@ -337,21 +352,18 @@ void ww(Word addr, Word val)
 	//printf("WRITE 0x%04X TO 0x%04X\n", val, rw(addr));
 }
 
-Word rwFromStack()
+Word popFromStack()
 {
 	Word value = rw(reg.SP);
 	reg.SP += 2;
-
 	//printf("Stack read 0x%02x\n", value);
-
 	return value;
 }
 
-void wwToStack(Word val)
+void pushToStack(Word val)
 {
 	reg.SP -= 2;
 	ww(reg.SP, val);
-
 	//printf("Stack write 0x%02x\n", val);
 }
 
