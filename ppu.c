@@ -1,5 +1,6 @@
 #include "ppu.h"
 #include "debug.h"
+#include "joypad.h"
 
 struct Ppu ppu;
 

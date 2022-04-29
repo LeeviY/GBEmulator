@@ -50,7 +50,7 @@ int getKeyCode(char key)
 		keyCode = START;
 		break;
 	default:
-		keyCode = 0xFF;
+		keyCode = 0;
 		break;
 	}
 
@@ -60,11 +60,11 @@ int getKeyCode(char key)
 void inputKeyDown(Byte key)
 {
 	joypad.keys &= ~getKeyCode(key);
-	interrupt.flags |= INT_JOYPAD;
+	//interrupt.flags |= INT_JOYPAD;
 }
 
 void inputKeyUp(Byte key)
 {
 	joypad.keys |= getKeyCode(key);
-	interrupt.flags &= ~INT_JOYPAD;
+	//interrupt.flags &= ~INT_JOYPAD;
 }

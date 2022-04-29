@@ -110,16 +110,34 @@ Byte rb(Word addr)
 
 	else if (addr == 0xFF00)
 	{
-		Byte val;
 		if ((joypad.select & (1 << 4)) == 0)
 		{
-			val = joypad.select | (joypad.keys & 0x0F);
+			for (int i = 5; i >= 0; --i)
+			{
+				Byte val = 0xC0 | joypad.select | (joypad.keys & 0x0F);
+				printf("%d", val & (1 << i) ? 1 : 0);
+			}
+			printf("\n");
+			return 0xC0 | joypad.select | (joypad.keys & 0x0F);
 		}
 		else if ((joypad.select & (1 << 5)) == 0)
 		{
-			val = joypad.select | (joypad.keys >> 4);
+			for (int i = 5; i >= 0; --i)
+			{
+				Byte val = 0xC0 | joypad.select | (joypad.keys >> 4);
+				printf("%d", val & (1 << i) ? 1 : 0);
+			}
+			printf("\n");
+			return 0xC0 | joypad.select | (joypad.keys >> 4);
 		}
-		return val;
+		else if (joypad.select & 0x30)
+		{
+			return 0xFF;
+		}
+		else
+		{
+			return 0;
+		}
 	}
 
 	else if (addr == 0xFF04)

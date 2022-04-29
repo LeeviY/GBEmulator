@@ -165,7 +165,7 @@ int main(int argc, char** argv)
 	loadBootstrap("dmg_boot.bin");
 	//loadRom("cpu_instrs/individual/01-special");	//*
 	//loadRom("cpu_instrs/individual/02-interrupts");
-	loadRom("cpu_instrs/individual/03-op sp,hl");
+	//loadRom("cpu_instrs/individual/03-op sp,hl");
 	//loadRom("cpu_instrs/individual/04-op r,imm");	//*
 	//loadRom("cpu_instrs/individual/05-op rp");	//*
 	//loadRom("cpu_instrs/individual/06-ld r,r");
@@ -178,7 +178,7 @@ int main(int argc, char** argv)
 	//loadRom("cpu_instrs/cpu_instrs");
 	//loadRom("dmg-acid2");
 	
-	//loadRom("Tetris");
+	loadRom("Tetris");
 	//loadRom("Legend of Zelda");
 	//loadRom("Pokemon_Red");
 

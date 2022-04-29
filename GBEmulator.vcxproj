@@ -149,7 +149,6 @@
   <ItemGroup>
     <ClCompile Include="cpu.c" />
     <ClCompile Include="debug.c" />
-    <ClCompile Include="gpu.c" />
     <ClCompile Include="joypad.c" />
     <ClCompile Include="main.c" />
     <ClCompile Include="memory.c" />
@@ -160,7 +159,6 @@
   <ItemGroup>
     <ClInclude Include="cpu.h" />
     <ClInclude Include="debug.h" />
-    <ClInclude Include="gpu.h" />
     <ClInclude Include="joypad.h" />
     <ClInclude Include="memory.h" />
     <ClInclude Include="ppu.h" />

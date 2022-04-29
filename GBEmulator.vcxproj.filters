@@ -27,9 +27,6 @@
     <ClCompile Include="registers.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="gpu.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="tables.c">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -51,9 +48,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="registers.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="gpu.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="tables.h">
