@@ -157,7 +157,7 @@ void memoryDump()
 // Debugger breakpoint
 Word bp = -1;
 
-const static int multiplier = 1;
+const static int multiplier = 4;
 
 void stepCpu()
 {
@@ -173,22 +173,26 @@ void stepCpu()
 	/*memoryMap[reg.PC][0] = 255;
 	memoryMap[reg.PC][1] = 0;
 	memoryMap[reg.PC][2] = 0;*/
+	//printUniquePCs();
 
 	// Get op
-	Byte op = rb(reg.PC++);
+	Byte op = rb(reg.PC);
 
 	// Get opcode
 	parseOpCode(&opcode, op);
+	
+	//printUniqueOps(op);
 
 	if (debugEnable || debugPrint)
 	{
-		printCpu(op,' ');
+		printCpu(' ');
 		printRegs(' ');
 		printInt(' ');
 		printPpu('\n');
 	}
 	cpu.clock = 0;
 
+	reg.PC++;
 	// Check if last operation was 0xCB/prefix
 	if (cpu.prefix)
 	{
@@ -227,7 +231,7 @@ void checkInterrupt()
 			pushToStack(reg.PC);
 			reg.PC = 0x40;
 
-			cpu.clock += 12;
+			cpu.clock += 6 * multiplier;
 		}
 		if (toggle & INT_LCD_STAT)
 		{
@@ -236,7 +240,7 @@ void checkInterrupt()
 			pushToStack(reg.PC);
 			reg.PC = 0x48;
 
-			cpu.clock += 12;
+			cpu.clock += 6 * multiplier;
 		}
 		if (toggle & INT_TIMER)
 		{
@@ -245,7 +249,7 @@ void checkInterrupt()
 			pushToStack(reg.PC);
 			reg.PC = 0x50;
 
-			cpu.clock += 12;
+			cpu.clock += 6 * multiplier;
 		}
 		if (toggle & INT_SERIAL)
 		{
@@ -254,7 +258,7 @@ void checkInterrupt()
 			pushToStack(reg.PC);
 			reg.PC = 0x58;
 
-			cpu.clock += 12;
+			cpu.clock += 6 * multiplier;
 		}
 		if (toggle & INT_JOYPAD)
 		{
@@ -263,7 +267,7 @@ void checkInterrupt()
 			pushToStack(reg.PC);
 			reg.PC = 0x60;
 
-			cpu.clock += 12;
+			cpu.clock += 6 * multiplier;
 		}
 	}
 }
@@ -273,7 +277,7 @@ void checkInterrupt()
 // ============================================================================
 void UNDEF()
 {
-	printf("UNDEFINED %02X", rb(--reg.PC));
+	printf("UNDEFINED %02X", rb(reg.PC-1));
 	debugOn(reg.PC);
 }
 
@@ -283,6 +287,7 @@ void NOP()
 
 void STOP()
 {
+	printf("STOPPED\n");
 	reg.PC++;
 	cpu.stopped = 1;
 }
@@ -295,9 +300,6 @@ void LD_nni_SP()
 void JR_n()
 {
 	reg.PC += (char)nextByte();
-	/*signed char a = (signed char)nextWord();
-	//printf("JUMP RIGHT HERE %x\n", a);
-	reg.PC += a - 1;*/
 }
 
 void JR_cc_n()
@@ -544,6 +546,7 @@ void LD_HL_r()
 
 void HALT()
 {
+	printf("HALTED\n");
 	if (!interrupt.flags) 
 	{
 		reg.PC--;
@@ -737,8 +740,6 @@ void RET_cc()
 	if ((opcode.y % 2 == 0 ? !cc : cc))
 	{
 		reg.PC = popFromStack();
-		reg.PC += 3;
-
 		cpu.clock += 3 * multiplier;
 	}
 }
@@ -788,7 +789,6 @@ void POP()
 void RET()
 {
 	reg.PC = popFromStack();
-	reg.PC += 3;
 }
 
 void RETI()
@@ -799,7 +799,6 @@ void RETI()
 
 void JP_HL()
 {
-	//reg.PC = rb(reg.HL);
 	reg.PC = reg.HL;
 }
 
@@ -814,7 +813,6 @@ void JP_cc_nn()
 	if ((opcode.y % 2 == 0 ? !cc : cc))
 	{
 		reg.PC = nextWord();
-
 		cpu.clock += 1 * multiplier;
 	}
 	else
@@ -868,8 +866,9 @@ void CALL_cc()
 	int cc = reg.F & opcodeTable.cc[opcode.y];
 	if ((opcode.y % 2 == 0 ? !cc : cc))
 	{
-		pushToStack(reg.PC - 1);
-		reg.PC = nextWord();
+		Word val = nextWord();
+		pushToStack(reg.PC);
+		reg.PC = val;
 
 		cpu.clock += 3 * multiplier;
 	}
@@ -882,8 +881,9 @@ void PUSH()
 
 void CALL()
 {
-	pushToStack(reg.PC - 1);
-	reg.PC = nextWord();
+	Word val = nextWord();
+	pushToStack(reg.PC);
+	reg.PC = val;
 }
 
 void ADD_n()
@@ -980,7 +980,6 @@ void RST()
 {
 	pushToStack(reg.PC);
 	reg.PC = opcode.y * 8;
-	//reg.PC += 3;
 }
 // ============================================================================
 // CB
@@ -1091,6 +1090,10 @@ void SRL_HL()
 
 void BIT()
 {
+	if (opcode.y == 3)
+	{
+		//printf("%2X %04X\n", *reg.r[opcode.z], reg.PC - 2);
+	}
 	SETFZ(!(*reg.r[opcode.z] & (1 << opcode.y)));
 	SETFN(0);
 	SETFH(1);

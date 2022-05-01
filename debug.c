@@ -43,21 +43,29 @@ void printToggle()
 	}
 }
 
-void printCpu(Byte op, char end)
+void printCpu(char end)
 {
-	printf("0x%04X | OPC=0x%02X \"", reg.PC - 1, op);
+	Byte op = rb(reg.PC);
+	printf("0x%04X | OPC=0x%02X \"", reg.PC, op);
 	int count = 0;
-	switch (numbers[op])
+	if (cpu.prefix)
 	{
-	case 0:
-		count = printf(opNames[op]);
-		break;
-	case 1:
-		count = printf(opNames[op], rb(reg.PC));
-		break;
-	case 2:
-		count = printf(opNames[op], rw(reg.PC));
-		break;
+		count = printf(cbNames[op]);
+	}
+	else
+	{
+		switch (numbers[op])
+		{
+		case 0:
+			count = printf(opNames[op]);
+			break;
+		case 1:
+			count = printf(opNames[op], rb(reg.PC + 1));
+			break;
+		case 2:
+			count = printf(opNames[op], rw(reg.PC + 1));
+			break;
+		}
 	}
 	printf("\"%*c%c", 24 - count, ' ', end);
 	//printf("x=%d z=%d y=%d q=%d p=%d ", opcode.x, opcode.z, opcode.y, opcode.q, opcode.p);
@@ -91,7 +99,41 @@ void printUniquePCs()
 		else if (seenPCs[i] == 0)
 		{
 			seenPCs[i] = reg.PC;
-			printf("%04X\n", reg.PC);
+			printCpu('\n');
+			break;
+		}
+	}
+}
+
+void printUniqueOps(Byte op)
+{
+	static Word seenOps[0x200];
+	static int CB = 0;
+
+	Word opW = op;
+
+	if (op == 0xCB)
+	{
+		CB = 1;
+		return;
+	}
+
+	if (CB)
+	{
+		opW |= 0xCB00;
+		CB = 0;
+	}
+
+	for (int i = 0; i < 0x200 && !inbios; ++i)
+	{
+		if (seenOps[i] == opW)
+		{
+			break;
+		}
+		else if (seenOps[i] == 0)
+		{
+			seenOps[i] = opW;
+			printf("%4X\n", opW);
 			break;
 		}
 	}

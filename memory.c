@@ -110,34 +110,25 @@ Byte rb(Word addr)
 
 	else if (addr == 0xFF00)
 	{
+		Byte val = 0;
 		if ((joypad.select & (1 << 4)) == 0)
 		{
-			for (int i = 5; i >= 0; --i)
-			{
-				Byte val = 0xC0 | joypad.select | (joypad.keys & 0x0F);
-				printf("%d", val & (1 << i) ? 1 : 0);
-			}
-			printf("\n");
-			return 0xC0 | joypad.select | (joypad.keys & 0x0F);
+			val = 0xC0 | joypad.select | (joypad.keys & 0x0F);
 		}
 		else if ((joypad.select & (1 << 5)) == 0)
 		{
-			for (int i = 5; i >= 0; --i)
-			{
-				Byte val = 0xC0 | joypad.select | (joypad.keys >> 4);
-				printf("%d", val & (1 << i) ? 1 : 0);
-			}
-			printf("\n");
-			return 0xC0 | joypad.select | (joypad.keys >> 4);
+			val = 0xC0 | joypad.select | (joypad.keys >> 4);
 		}
 		else if (joypad.select & 0x30)
 		{
-			return 0xFF;
+			val = 0xFF;
 		}
-		else
+		for (int i = 7; i >= 0; --i)
 		{
-			return 0;
+			printf("%d", val & (1 << i) ? 1 : 0);
 		}
+		printf("\n");
+		return val;
 	}
 
 	else if (addr == 0xFF04)
@@ -157,7 +148,7 @@ Byte rb(Word addr)
 
 	else if (addr == 0xFF41)
 	{
-		return ppu.stat & 0xFC | ppu.mode;
+		return (ppu.stat & 0xFC) | ppu.mode;
 	}
 
 	else if (addr == 0xFF42)
@@ -248,7 +239,6 @@ void wb(Word addr, Byte val)
 		_vram[addr - 0x8000] = val;
 		if (addr < 0x9800)
 		{
-			//printf("%X %X\n", addr, val);
 			updateTile(addr);
 		}
 	}
@@ -280,13 +270,12 @@ void wb(Word addr, Byte val)
 
 	else if (addr == 0xFF40)
 	{
-		//printf("Write to lcdc %d %X %d\n", val, reg.PC, ppu.mode);
 		ppu.lcdc = val;
 	}
 
 	else if (addr == 0xFF41)
 	{
-		ppu.stat |= val & 0x78; // Only allow write to upper 4 bits
+		ppu.stat |= val & 0xF8; // Only allow write to upper 4 bits
 	}
 
 	else if (addr == 0xFF42)

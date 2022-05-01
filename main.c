@@ -169,13 +169,13 @@ int main(int argc, char** argv)
 	//loadRom("cpu_instrs/individual/04-op r,imm");	//*
 	//loadRom("cpu_instrs/individual/05-op rp");	//*
 	//loadRom("cpu_instrs/individual/06-ld r,r");
-	//loadRom("cpu_instrs/individual/07-jr,jp,call,ret,rst");	//*
+	//loadRom("cpu_instrs/individual/07-jr,jp,call,ret,rst");
 	//loadRom("cpu_instrs/individual/08-misc instrs");	//*
 	//loadRom("cpu_instrs/individual/09-op r,r");	//*
-	//loadRom("cpu_instrs/individual/10-bit ops");
+	//loadRom("cpu_instrs/individual/10-bit ops"); //*
 	//loadRom("cpu_instrs/individual/11-op a,(hl)");
 
-	//loadRom("cpu_instrs/cpu_instrs");
+	//loadRom("instr_timing/instr_timing");
 	//loadRom("dmg-acid2");
 	
 	loadRom("Tetris");

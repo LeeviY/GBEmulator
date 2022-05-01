@@ -170,8 +170,6 @@ void stepPpu()
 					interrupt.flags |= INT_LCD_STAT;
 				}
 			}
-
-			//printf("%d %d\n", ppu.stat, ppu.lyc);
 			if (ppu.ly == ppu.lyc)
 			{
 				ppu.stat |= STAT_LY_FLAG;
@@ -216,60 +214,6 @@ void stepPpu()
 	}
 }
 
-/*void drawLine1(Byte* scanPriority)
-{
-	int x, offset = ppu.ly * 160;
-	int windowVisible = ppu.ly >= ppu.wy && ppu.lcdc & LCDC_WINENABLE && ppu.ly - ppu.wy < 144;
-
-	for (x = 0; x < 160; ++x, ++offset)
-	{
-		unsigned int map_select, map_offset, tile_num, tile_addr, xm, ym;
-		Byte b1, b2, mask, colour;
-
-		if (windowVisible && x + 7 >= ppu.wx)
-		{
-			xm = x + 7 - ppu.wx;
-			ym = ppu.ly - ppu.wy;
-			map_select = ppu.lcdc & LCDC_TILEMAP;
-		}
-		else 
-		{
-			if (!(ppu.lcdc & LCDC_BGENABLE))
-			{
-				frameBuffer[offset][0] = palette[bgPalette[0]];
-				frameBuffer[offset][1] = palette[bgPalette[0]];
-				frameBuffer[offset][2] = palette[bgPalette[0]];
-				continue;
-			}
-			xm = (x + ppu.scx) & 0xFF;
-			ym = (ppu.ly + ppu.scy) & 0xFF;
-			map_select = ppu.lcdc & LCDC_TILEMAP;
-		}
-
-		map_offset = (ym / 8) * 32 + xm / 8;
-
-		tile_num = -_vram[0x1800 + map_select * 0x400 + map_offset];
-
-		if (!(ppu.lcdc & LCDC_TILEDATA))
-		{
-			tile_num = (signed int)(tile_num)+128;
-		}
-
-		tiles[tile_num][ym][(x - (ppu.scx & 7)) % 8];
-
-		b1 = _vram[tile_addr + (ym & 7) * 2];
-		b2 = _vram[tile_addr + (ym & 7) * 2 + 1];
-		mask = 128 >> (xm & 7);
-		colour = (!!(b2 & mask) << 1) | !!(b1 & mask);
-
-		scanPriority[x] = colour;
-
-		frameBuffer[offset][0] = palette[bgPalette[colour]];
-		frameBuffer[offset][1] = palette[bgPalette[colour]];
-		frameBuffer[offset][2] = palette[bgPalette[colour]];
-	}
-}*/
-
 void frameBufferSetColor(Byte color, int x)
 {
 	switch (color)
@@ -299,7 +243,7 @@ void frameBufferSetColor(Byte color, int x)
 		break;
 	}
 
-	// BW
+	// Black & White
 	/*frameBuffer[ppu.ly * 160 + x][0] = color;
 	frameBuffer[ppu.ly * 160 + x][1] = color;
 	frameBuffer[ppu.ly * 160 + x][2] = color;*/
