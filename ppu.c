@@ -23,13 +23,22 @@ void resetPpu()
 	ppu.lyWin = 0;
 	ppu.wy = 0;
 	ppu.wx = 0;
+
+	for (int i = 0; i < 4; ++i)
+	{
+		bgPalette[i] = i;
+		objPalette[0][i] = i;
+		objPalette[1][i] = i;
+	}
 }
 
-static int multiplier = 1;
-void stepPpu1()
+static int multiplier = 4;
+
+void stepPpu()
 {
 	if (!(ppu.lcdc & LCDC_ENABLE))
 	{
+		//printf("Disable\n");
 		return;
 	}
 
@@ -46,91 +55,14 @@ void stepPpu1()
 		if (ppu.clock >= 20 * multiplier)
 		{
 			ppu.mode = PPU_MODE_VRAM;
+			ppu.stat |= PPU_MODE_VRAM;
+
 			ppu.clock -= 20 * multiplier;
 		}
 		break;
 
 	case PPU_MODE_VRAM:
-		if (ppu.clock >= 43 * multiplier)
-		{
-
-			Byte scan[160];
-			drawLine(scan);
-			drawObjects(scan);
-
-			ppu.mode = PPU_MODE_HBLANK;
-			ppu.clock -= 43 * multiplier;
-		}
-		break;
-
-	case PPU_MODE_HBLANK:
-		if (ppu.clock >= 51 * multiplier)
-		{
-			if (ppu.ly++ == 143)
-			{
-				reDisplay();
-				interrupt.flags |= INT_VBLANK;
-
-				ppu.mode = PPU_MODE_VBLANK;
-			}
-			else
-			{
-				ppu.mode = PPU_MODE_OAM;
-			}
-
-			ppu.clock -= 51 * multiplier;
-		}
-		break;
-
-	case PPU_MODE_VBLANK:
-		if (ppu.clock >= 114 * multiplier)
-		{
-			ppu.ly++;
-
-			if (ppu.ly > 153)
-			{
-				ppu.mode = PPU_MODE_OAM;
-				ppu.ly = 0;
-			}
-			ppu.clock -= 114 * multiplier;
-
-			if (ppu.stat & STAT_LY_ENABLE && ppu.ly == ppu.lyc)
-			{
-				interrupt.flags |= INT_LCD_STAT;
-			}
-		}
-		break;
-	}
-}
-
-void stepPpu()
-{
-	if (!(ppu.lcdc & LCDC_ENABLE))
-	{
-		return;
-	}
-
-	if (cpu.clock == 0)
-	{
-		return;
-	}
-
-	ppu.clock += cpu.clock * multiplier;
-
-	switch (ppu.mode)
-	{
-	case PPU_MODE_OAM:
-		if (ppu.clock >= 80)
-		{
-			ppu.mode = PPU_MODE_VRAM;
-			ppu.stat |= PPU_MODE_VRAM;
-
-			ppu.clock -= 80;
-		}
-		break;
-
-	case PPU_MODE_VRAM:
-		if (ppu.clock >= 144)
+		if (ppu.clock >= 36 * multiplier)
 		{
 			Byte scan[160];
 			drawLine(scan);
@@ -142,12 +74,12 @@ void stepPpu()
 			{
 				interrupt.flags |= INT_LCD_STAT;
 			}
-			ppu.clock -= 144;
+			ppu.clock -= 36 * multiplier;
 		}
 		break;
 
 	case PPU_MODE_HBLANK:
-		if (ppu.clock >= 204)
+		if (ppu.clock >= 51 * multiplier)
 		{
 			if (ppu.ly++ == 143)
 			{
@@ -183,12 +115,12 @@ void stepPpu()
 				ppu.stat &= ~STAT_LY_FLAG;
 			}
 
-			ppu.clock -= 204;
+			ppu.clock -= 51 * multiplier;
 		}
 		break;
 
 	case PPU_MODE_VBLANK:
-		if (ppu.clock >= 456)
+		if (ppu.clock >= 114 * multiplier)
 		{
 			ppu.ly++;
 
@@ -208,7 +140,7 @@ void stepPpu()
 				interrupt.flags |= INT_LCD_STAT;
 			}
 
-			ppu.clock -= 456;
+			ppu.clock -= 114 * multiplier;
 		}
 		break;
 	}
@@ -282,8 +214,9 @@ void drawLine(Byte* scanPriority)
 				windowTile = (windowTile ^ 0x80) + 128;
 			}
 
-			Byte color = bgPalette[tiles[windowTile][ppu.lyWin % 8][(x - wx) % 8]];
-			scanPriority[x] = 4;
+			Byte color = tiles[windowTile][ppu.lyWin % 8][(x - wx) % 8];
+			scanPriority[x] = color;
+			color = bgPalette[color];
 
 			frameBufferSetColor(color, x);
 			/*if (x % 8 == 0)
@@ -342,7 +275,7 @@ void drawObjects(Byte* scanPriority)
 	Byte ly = ppu.ly;
 	int objectSize = ppu.lcdc & LCDC_OBJSIZE ? 16 : 8;
 
-	// First byte is color second byte is start of object
+	// First byte is color, second byte is start of object
 	Byte scannedObj[160][2] = { 0 };
 	int spriteCount = 0;
 
@@ -353,12 +286,8 @@ void drawObjects(Byte* scanPriority)
 		Byte objTile = _oam[i + 2] & (ppu.lcdc & LCDC_OBJSIZE ? 0xFE : 0xFF);
 		Byte objAttr = _oam[i + 3];
 
-		if ((objY <= 0xFF - objectSize + 1 && ly < objY) || ly > objY + objectSize - 1)
-		{
-			continue;
-		}
 
-		if (objX >= 160 && objX <= 0xF8)
+		if ((objY <= 0xFF - objectSize + 1 && ly < objY) || ly > objY + objectSize - 1)
 		{
 			continue;
 		}
@@ -367,6 +296,12 @@ void drawObjects(Byte* scanPriority)
 		{
 			break;
 		}
+
+		if (objX >= 160 && objX <= 0xF8)
+		{
+			continue;
+		}
+
 
 		Byte tileY = objAttr & OBJ_YFLIP ? objectSize - 1 - (ly - objY) : ly - objY;
 
@@ -378,7 +313,7 @@ void drawObjects(Byte* scanPriority)
 			}
 
 			// Check bg/window priority
-			if ((!(objAttr & OBJ_PRIORITY) || !scanPriority[objX + x]) && scanPriority[objX + x] != 4)
+			if ((!(objAttr & OBJ_PRIORITY) || !scanPriority[objX + x]))
 			{
 				// Check object priority
 				if (!scannedObj[objX + x][0] || scannedObj[objX + x][1] > objX)
@@ -390,10 +325,16 @@ void drawObjects(Byte* scanPriority)
 					{
 						scannedObj[objX + x][0] = 1;
 						scannedObj[objX + x][1] = objX;
-						frameBufferSetColor(objPalette[objAttr & OBJ_PALETTE][color], objX + x);
+						frameBufferSetColor(objPalette[!!(objAttr & OBJ_PALETTE)][color], objX + x);
 					}
 				}
 			}
+			/*if (x % 8 == 0)
+			{
+				frameBuffer[ly * 160 + objX + x][0] = 255;
+				frameBuffer[ly * 160 + objX + x][1] = 0;
+				frameBuffer[ly * 160 + objX + x][2] = 255;
+			}*/
 		}
 	}
 }

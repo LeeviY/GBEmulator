@@ -78,7 +78,7 @@ void printRegs(char end)
 
 void printInt(char end)
 {
-	printf("| IM=%02x IE=%02x IF=%02x%c", interrupt.master, interrupt.enable, interrupt.flags, end);
+	printf("| IM=%02x IE=%02x IF=%02x clk=%2d %c", interrupt.master, interrupt.enable, interrupt.flags, cpu.clock, end);
 }
 
 void printPpu(char end)

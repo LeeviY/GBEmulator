@@ -52,7 +52,7 @@ struct OpcodeTable opcodeTable =
 
 	.cbPrefixed =
 	{
-		RLC, RLC, RLC, RLC, RLC, RLC, RLC_HL, RLC, 0, 0, 0, 0, 0, 0, 0, 0,
+		RLC, RLC, RLC, RLC, RLC, RLC, RLC_HL, RLC, RRC, RRC, RRC, RRC, RRC, RRC, 0, RRC,
 		RL, RL, RL, RL, RL, RL, 0, RL, RR, RR, RR, RR, RR, RR, 0, RR,
 		SLA, SLA, SLA, SLA, SLA, SLA, 0, SLA, 0, 0, 0, 0, 0, 0, 0, 0,
 		SWAP, SWAP, SWAP, SWAP, SWAP, SWAP, 0, SWAP, SRL, SRL, SRL, SRL, SRL, SRL, SRL_HL, SRL,
@@ -546,7 +546,6 @@ void LD_HL_r()
 
 void HALT()
 {
-	printf("HALTED\n");
 	if (!interrupt.flags) 
 	{
 		reg.PC--;
@@ -763,7 +762,7 @@ void ADD_SP_n()
 }
 
 void LD_A_ff_n()
-{
+{	
 	reg.A = rb(0xFF00 + nextByte());
 }
 
@@ -968,12 +967,12 @@ void OR_n()
 
 void CP_n()
 {
-	Byte operand = nextByte();
+	Byte val = nextByte();
 
-	SETFZ(reg.A == operand);
+	SETFZ(reg.A == val);
 	SETFN(1);
-	SETFH((operand & 0x0F) > (reg.A & 0x0F));
-	SETFC(operand > reg.A);
+	SETFH((val & 0x0F) > (reg.A & 0x0F));
+	SETFC(val > reg.A);
 }
 
 void RST()
@@ -1012,6 +1011,22 @@ void RLC_HL()
 	wb(reg.HL, val);
 
 	SETFZ(!val);
+	SETFN(0);
+	SETFH(0);
+}
+
+void RRC()
+{
+	int carry = (*reg.r[opcode.z] & 0x01);
+
+	*reg.r[opcode.z] >>= 1;
+
+	if (carry)
+	{
+		SETFC(1);
+		*reg.r[opcode.z] |= 0x80;
+	}
+	SETFZ(!*reg.r[opcode.z]);
 	SETFN(0);
 	SETFH(0);
 }
@@ -1089,11 +1104,7 @@ void SRL_HL()
 }
 
 void BIT()
-{
-	if (opcode.y == 3)
-	{
-		//printf("%2X %04X\n", *reg.r[opcode.z], reg.PC - 2);
-	}
+{	
 	SETFZ(!(*reg.r[opcode.z] & (1 << opcode.y)));
 	SETFN(0);
 	SETFH(1);

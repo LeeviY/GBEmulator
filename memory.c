@@ -123,11 +123,11 @@ Byte rb(Word addr)
 		{
 			val = 0xFF;
 		}
-		for (int i = 7; i >= 0; --i)
+		/*for (int i = 7; i >= 0; --i)
 		{
 			printf("%d", val & (1 << i) ? 1 : 0);
 		}
-		printf("\n");
+		printf("\n");*/
 		return val;
 	}
 
@@ -215,8 +215,6 @@ void wb(Word addr, Byte val)
 	/*memoryMap[addr][0] = 0;
 	memoryMap[addr][1] = 0;
 	memoryMap[addr][2] = 255;*/
-
-	if (addr == 0xFF80) return;
 
 	if (inbios)
 	{

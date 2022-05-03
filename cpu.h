@@ -183,12 +183,12 @@ void XOR_n();
 void OR_n();
 void CP_n();
 void RST();
-void INT40();
 
 // Prefixed
 // x == 0
 void RLC();
 void RLC_HL();
+void RRC();
 void RL();
 void RR();
 void SLA();

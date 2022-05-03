@@ -110,7 +110,7 @@ void keyInputHandler(Byte key, int x, int y)
 		glutDestroyWindow("GameBoy");
 		break;
 	case ' ':
-		printf("%d %d %X\n", x / 4 / 8, y / 4 / 8, (y / 4 / 8) * 16 + x / 4 / 8);
+		printf("%d %d %d %d %X\n", x / 4, y / 4, x / 4 / 8, y / 4 / 8, (y / 4 / 8) * 16 + x / 4 / 8);
 		break;
 	case 's':
 		debugStop = 0;
@@ -178,7 +178,9 @@ int main(int argc, char** argv)
 	//loadRom("instr_timing/instr_timing");
 	//loadRom("dmg-acid2");
 	
-	loadRom("Tetris");
+	//loadRom("Tetris");
+	//loadRom("Dr_Mario");
+	loadRom("Alleyway");
 	//loadRom("Legend of Zelda");
 	//loadRom("Pokemon_Red");
 
@@ -188,6 +190,7 @@ int main(int argc, char** argv)
 	glutInitWindowSize(width * scale, height * scale);
 	glutCreateWindow("GameBoy");
 	glClearColor(0, 0, 0, 1);
+	glutSetKeyRepeat(GLUT_KEY_REPEAT_OFF);
 
 	// Set glut event callback functions
 	//glutIdleFunc(stepCpu);
