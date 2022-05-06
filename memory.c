@@ -11,6 +11,7 @@
 #include "ppu.h"
 #include "tables.h"
 #include "joypad.h"
+#include "timer.h"
 
 Byte _bios[0x100];
 Byte _rom[0x8000];
@@ -24,6 +25,9 @@ Byte _zram[0x80];
 Byte memoryMap[0xFFFF][3];
 
 int inbios = 1; // Controls if first sector is read from boot or rom
+
+static Byte serialData = 0;
+static Byte serialControl = 0;
 
 void loadBootstrap(char* fileName)
 {
@@ -70,7 +74,6 @@ Byte rb(Word addr)
 	memoryMap[addr][1] = 255;
 	memoryMap[addr][2] = 0;*/
 
-
 	if (inbios)
 	{
 		if (addr < 0x100)
@@ -81,6 +84,57 @@ Byte rb(Word addr)
 		{
 			inbios = 0;
 		}
+	}
+
+	switch (addr)
+	{
+	case 0xFF00:
+		if ((joypad.select & (1 << 4)) == 0)
+		{
+			return 0xC0 | joypad.select | (joypad.keys & 0x0F);
+		}
+		else if ((joypad.select & (1 << 5)) == 0)
+		{
+			return 0xC0 | joypad.select | (joypad.keys >> 4);
+		}
+		return 0xFF;
+	case 0xFF01:
+		return serialData;
+	case 0xFF02:
+		return serialControl;
+	case 0xFF04:
+		return timer.div;//(Byte)rand();
+	case 0xFF05:
+		return timer.tima;
+	case 0xFF06:
+		return timer.tma;
+	case 0xFF07:
+		return timer.tac;
+	case 0xFF0F:
+		return interrupt.flags;
+	case 0xFF40:
+		return ppu.lcdc;
+	case 0xFF41:
+		return (ppu.stat & 0xFC) | ppu.mode;
+	case 0xFF42:
+		return ppu.scy;
+	case 0xFF43:
+		return ppu.scx;
+	case 0xFF44:
+		return ppu.ly;
+	case 0xFF45:
+		return ppu.lyc;
+	case 0xFF4A:
+		return ppu.wy;
+	case 0xFF4B:
+		return ppu.wx;
+	case 0xFF4D: 
+	case 0xFF74:
+		return 0xFF;
+	case 0xFFFF:
+		return interrupt.enable;
+	default:
+		break;
 	}
 
 	if (addr < 0x8000)
@@ -108,85 +162,7 @@ Byte rb(Word addr)
 		return _oam[addr - 0xFE00];
 	}
 
-	else if (addr == 0xFF00)
-	{
-		Byte val = 0;
-		if ((joypad.select & (1 << 4)) == 0)
-		{
-			val = 0xC0 | joypad.select | (joypad.keys & 0x0F);
-		}
-		else if ((joypad.select & (1 << 5)) == 0)
-		{
-			val = 0xC0 | joypad.select | (joypad.keys >> 4);
-		}
-		else if (joypad.select & 0x30)
-		{
-			val = 0xFF;
-		}
-		/*for (int i = 7; i >= 0; --i)
-		{
-			printf("%d", val & (1 << i) ? 1 : 0);
-		}
-		printf("\n");*/
-		return val;
-	}
-
-	else if (addr == 0xFF04)
-	{
-		return (Byte)rand();
-	}
-
-	else if (addr == 0xFF0F)
-	{
-		return interrupt.flags;
-	}
-
-	else if (addr == 0xFF40)
-	{
-		return ppu.lcdc;
-	}
-
-	else if (addr == 0xFF41)
-	{
-		return (ppu.stat & 0xFC) | ppu.mode;
-	}
-
-	else if (addr == 0xFF42)
-	{
-		return ppu.scy;
-	}
-
-	else if (addr == 0xFF43)
-	{
-		return ppu.scx;
-	}
-
-	else if (addr == 0xFF44)
-	{
-		return ppu.ly;
-	}
-
-	else if (addr == 0xFF45)
-	{
-		return ppu.lyc;
-	}
-
-	else if (addr == 0xFF4A)
-	{
-		return ppu.wy;
-	}
-
-	else if (addr == 0xFF4B)
-	{
-		return ppu.wx;
-	}
-
-	else if (addr == 0xFF4D || addr == 0xFF74)
-	{
-		return 0xFF;
-	}
-
-	else if (addr > 0xFF00 && addr < 0xFF80)
+	else if (addr >= 0xFF00 && addr < 0xFF80)
 	{
 		return _io[addr - 0xFF00];
 	}
@@ -196,12 +172,7 @@ Byte rb(Word addr)
 		return _zram[addr - 0xFF80];
 	}
 
-	else if (addr == 0xFFFF)
-	{
-		return interrupt.enable;
-	}
-
-	return 0;
+	return 0xFF;
 }
 
 Word rw(Word addr)
@@ -225,6 +196,80 @@ void wb(Word addr, Byte val)
 		}
 		else if (reg.PC == 0x100)
 			inbios = 0;
+	}
+
+	switch (addr)
+	{
+	case 0xFF00:
+		joypad.select = val; // Mask off bottom 4 bits
+		return;
+	case 0xFF01:
+		serialData = val;
+	case 0xFF02:
+		serialControl = val;
+	case 0xFF04:
+		timer.div = 0;
+		timer.divClock = 0;
+	case 0xFF05:
+		timer.tima = val;
+	case 0xFF06:
+		timer.tma = val;
+	case 0xFF07:
+		if (timer.tac & 3 != (val & 3))
+		{
+			timer.tmaClock = 0;
+			timer.tima = timer.tma;
+		}
+		timer.tac = val;
+	case 0xFF0F:
+		interrupt.flags = val;
+		return;
+	case 0xFF40:
+		ppu.lcdc = val;
+		return;
+	case 0xFF41:
+		ppu.stat |= val & 0xF8; // Only allow write to upper 4 bits
+		return;
+	case 0xFF42:
+		ppu.scy = val;
+		return;
+	case 0xFF43:
+		ppu.scx = val;
+		return;
+	case 0xFF44:
+		return; // Read only
+	case 0xFF45:
+		ppu.lyc = val;
+		return;
+	case 0xFF46:
+		copyDma(0xFE00, val << 8, 160);
+		return;
+	case 0xFF47:
+		for (int i = 0; i < 4; ++i)
+		{
+			bgPalette[i] = palette[(val >> (i * 2)) & 3];
+		}
+	case 0xFF48:
+		for (int i = 0; i < 4; ++i)
+		{
+			objPalette[0][i] = palette[(val >> (i * 2)) & 3];
+		}
+	case 0xFF49:
+		for (int i = 0; i < 4; ++i)
+		{
+			objPalette[1][i] = palette[(val >> (i * 2)) & 3];
+		}
+	case 0xFF4A:
+		ppu.wy = val;
+		return;
+	case 0xFF4B:
+		ppu.wx = val;
+		return;
+	case 0xFFFF:
+		interrupt.enable = val;
+		return;
+	default:
+		break;
 	}
 
 	if (addr >= 0xA000 && addr < 0xC000)
@@ -251,88 +296,6 @@ void wb(Word addr, Byte val)
 		_oam[addr - 0xFE00] = val;
 	}
 
-	else if (addr == 0xFF00)
-	{
-		joypad.select = val; // Mask off bottom 4 bits
-	}
-
-	if (addr == 0xFF02 && val == 0x81)
-	{
-		//printf("%X\n", rb(0xFF01));
-	}
-
-	else if (addr == 0xFF0F)
-	{
-		interrupt.flags = val;
-	}
-
-	else if (addr == 0xFF40)
-	{
-		ppu.lcdc = val;
-	}
-
-	else if (addr == 0xFF41)
-	{
-		ppu.stat |= val & 0xF8; // Only allow write to upper 4 bits
-	}
-
-	else if (addr == 0xFF42)
-	{
-		ppu.scy = val;
-	}
-
-	else if (addr == 0xFF43)
-	{
-		ppu.scx = val;
-	}
-
-	//FF44 ly read only
-		
-	else if (addr == 0xFF45)
-	{
-		ppu.lyc = val;
-	}
-
-	else if (addr == 0xFF46)
-	{
-		copyDma(0xFE00, val << 8, 160);
-	}
-
-	else if (addr == 0xFF47)
-	{
-		
-		for (int i = 0; i < 4; ++i)
-		{
-			bgPalette[i] = palette[(val >> (i * 2)) & 3];
-		}
-	}
-
-	else if (addr == 0xFF48)
-	{
-		for (int i = 0; i < 4; ++i)
-		{
-			objPalette[0][i] = palette[(val >> (i * 2)) & 3];
-		}
-	}
-
-	else if (addr == 0xFF49)
-	{
-		for (int i = 0; i < 4; ++i)
-		{
-			objPalette[1][i] = palette[(val >> (i * 2)) & 3];
-		}
-	}
-
-	else if (addr == 0xFF4A)
-	{
-		ppu.wy = val;
-	}
-
-	else if (addr == 0xFF4B)
-	{
-		ppu.wx = val;
-	}
-
 	else if (addr >= 0xFF00 && addr < 0xFF80)
 	{
 		_io[addr - 0xFF00] = val;
@@ -341,11 +304,6 @@ void wb(Word addr, Byte val)
 	else if (addr >= 0xFF80 && addr < 0xFFFF)
 	{
 		_zram[addr - 0xFF80] = val;
-	}
-
-	else if (addr == 0xFFFF)
-	{
-		interrupt.enable = val;
 	}
 }
 

@@ -52,10 +52,10 @@ struct OpcodeTable opcodeTable =
 
 	.cbPrefixed =
 	{
-		RLC, RLC, RLC, RLC, RLC, RLC, RLC_HL, RLC, RRC, RRC, RRC, RRC, RRC, RRC, 0, RRC,
-		RL, RL, RL, RL, RL, RL, 0, RL, RR, RR, RR, RR, RR, RR, 0, RR,
-		SLA, SLA, SLA, SLA, SLA, SLA, 0, SLA, 0, 0, 0, 0, 0, 0, 0, 0,
-		SWAP, SWAP, SWAP, SWAP, SWAP, SWAP, 0, SWAP, SRL, SRL, SRL, SRL, SRL, SRL, SRL_HL, SRL,
+		RLC, RLC, RLC, RLC, RLC, RLC, RLC_HL, RLC, RRC, RRC, RRC, RRC, RRC, RRC, RRC_HL, RRC,
+		RL, RL, RL, RL, RL, RL, RL_HL, RL, RR, RR, RR, RR, RR, RR, RR_HL, RR,
+		SLA, SLA, SLA, SLA, SLA, SLA, SLA_HL, SLA, SRA, SRA, SRA, SRA, SRA, SRA, SRA_HL, SRA,
+		SWAP, SWAP, SWAP, SWAP, SWAP, SWAP, SWAP_HL, SWAP, SRL, SRL, SRL, SRL, SRL, SRL, SRL_HL, SRL,
 
 		BIT, BIT, BIT, BIT, BIT, BIT, BIT_HL, BIT, BIT, BIT, BIT, BIT, BIT, BIT, BIT_HL, BIT,
 		BIT, BIT, BIT, BIT, BIT, BIT, BIT_HL, BIT, BIT, BIT, BIT, BIT, BIT, BIT, BIT_HL, BIT,
@@ -128,6 +128,7 @@ void resetCpu()
 	cpu.prefix = 0;
 	cpu.stopped = 0;
 
+	resetTimer();
 	resetPpu();
 
 	/*for (int i = 0; i < 0x2000; ++i)
@@ -192,6 +193,11 @@ void stepCpu()
 	}
 	cpu.clock = 0;
 
+	if (reg.PC == 0x1F5)
+	{
+		NOP();
+	}
+
 	reg.PC++;
 	// Check if last operation was 0xCB/prefix
 	if (cpu.prefix)
@@ -208,11 +214,12 @@ void stepCpu()
 		cpu.clock += insTicks[op];
 	}
 
+	stepTimer();
 	stepPpu();
 	checkInterrupt();
 
 	// Breakpoint toggle
-	if (debugEnable)
+	if (debugEnable && !cpu.prefix)
 	{
 		debugStop = 1;
 	}
@@ -322,9 +329,9 @@ void LD_rp_nn()
 	*reg.rp[opcode.p] = nextWord();
 }
 
-void ADD_HL_rp()
+void ADD_HL_rp1()
 {
-	unsigned int result = reg.HL + *reg.rp[opcode.p];
+	unsigned long result = reg.HL + *reg.rp[opcode.p];
 
 	SETFC(result & 0xFFFF0000);
 
@@ -332,6 +339,20 @@ void ADD_HL_rp()
 
 	SETFN(0);
 	SETFH(((reg.HL & 0x0F) + (*reg.rp[opcode.p] & 0x0F)) > 0x0F);
+
+	printf("%4X %2X\n", reg.HL, reg.F);
+}
+
+void ADD_HL_rp()
+{
+	Word result = reg.HL + *reg.rp[opcode.p];
+
+	SETFC(reg.HL > 0xFFFF - result);
+	SETFN(0);
+	SETFH(((reg.HL & 0xFFF) + (*reg.rp[opcode.p] & 0xFFF)) > 0xFFF);
+	reg.HL = result;
+
+	//printf("%4X %2X\n", reg.HL, reg.F);
 }
 
 void LD_rpi_A()
@@ -377,7 +398,7 @@ void DEC_rp()
 void INC()
 {
 	SETFN(0);
-	SETFH((*reg.r[opcode.y] & 0x0F) == 0x0F);
+	SETFH((*reg.r[opcode.y] & 0x0F) + 1 > 0x0F);
 	
 	++*reg.r[opcode.y];
 	SETFZ(!*reg.r[opcode.y]);
@@ -387,7 +408,7 @@ void INC_HL()
 {
 	Byte val = rb(reg.HL);
 	SETFN(0);
-	SETFH((val & 0x0F) == 0x0F);
+	SETFH((val & 0x0F) + 1 > 0x0F);
 
 	wb(reg.HL, val + 1);
 	SETFZ(!*reg.r[opcode.y]);
@@ -480,36 +501,33 @@ void RRA()
 
 void DAA()
 {
-	Word val = reg.A;
+	Byte adj = ISFC ? 0x60 : 0;
 
-	if (ISFN)
+	if (ISFH)
 	{
-		if (ISFH)
-		{
-			val = (val - 0x06) & 0xFF;
-		}
-		if (ISFC)
-		{
-			val -= 0x60;
-		}
-	}
-	else 
-	{
-		if (ISFH || (val & 0xF) > 9)
-		{
-			val += 0x06;
-		}
-		if (ISFC || val > 0x9F)
-		{
-			val += 0x60;
-		}
+		adj |= 0x6;
 	}
 
-	reg.A = val;
+	if (!ISFN)
+	{
+		if ((reg.A & 0xF) > 0x9)
+		{
+			adj |= 0x6;
+		}
+		if (reg.A > 0x99)
+		{
+			adj |= 0x60;
+		}
+		reg.A += adj;
+	}
+	else
+	{
+		reg.A -= adj;
+	}
+
+	SETFC(adj >= 0x60);
 	SETFH(0);
-
 	SETFZ(!reg.A);
-	SETFC(val >= 0x100);
 }
 
 void CPL()
@@ -557,24 +575,24 @@ void HALT()
 // ============================================================================
 void ADD()
 {
-	unsigned int result = reg.A + *reg.r[opcode.z];
-	reg.A = (Byte)(result & 0xFF);
-
-	SETFZ(!reg.A);
+	Byte val = *reg.r[opcode.z];
+	SETFC((Word)reg.A + (Word)val > 0xFF);
+	SETFH(((reg.A & 0xF) + (val & 0xF)) > 0xF);
 	SETFN(0);
-	SETFH(((reg.A & 0x0F) + (*reg.r[opcode.z] & 0x0F)) > 0x0F);
-	SETFC(result & 0xFF00);
+
+	reg.A = reg.A + val;
+	SETFZ(!reg.A);
 }
 
 void ADD_HL()
 {
-	unsigned int result = reg.A + rb(reg.HL);
-	reg.A = (Byte)(result & 0xFF);
-
-	SETFZ(!reg.A);
+	Byte val = rb(reg.HL);
+	SETFC((Word)reg.A + (Word)val > 0xFF);
+	SETFH(((reg.A & 0xF) + (val & 0xF)) > 0xF);
 	SETFN(0);
-	SETFH(((reg.A & 0x0F) + (rb(reg.HL) & 0x0F)) > 0x0F);
-	SETFC(result & 0xFF00);
+
+	reg.A = reg.A + val;
+	SETFZ(!reg.A);
 }
 
 void ADC()
@@ -783,6 +801,10 @@ void LD_HL_SP_n()
 void POP()
 {
 	*reg.rp2[opcode.p] = popFromStack();
+	if (opcode.p == 3)
+	{
+		reg.F &= 0xF0;
+	}
 }
 
 void RET()
@@ -1031,6 +1053,25 @@ void RRC()
 	SETFH(0);
 }
 
+void RRC_HL()
+{
+	int carry = (*reg.r[opcode.z] & 0x01);
+	Byte val = rb(reg.HL);
+
+	val >>= 1;
+
+	if (carry)
+	{
+		SETFC(1);
+		val |= 0x80;
+	}
+	SETFZ(!val);
+	SETFN(0);
+	SETFH(0);
+
+	wb(reg.HL, val);
+}
+
 void RL()
 {
 	int carry = ISFC ? 1 : 0;
@@ -1042,6 +1083,23 @@ void RL()
 	*reg.r[opcode.z] <<= 1;
 	*reg.r[opcode.z] += carry;
 	SETFZ(!*reg.r[opcode.z]);
+}
+
+void RL_HL()
+{
+	int carry = ISFC ? 1 : 0;
+
+	Byte val = rb(reg.HL);
+
+	SETFN(0);
+	SETFH(0);
+	SETFC(val & 0x80);
+
+	val <<= 1;
+	val += carry;
+	SETFZ(!val);
+
+	wb(reg.HL, val);
 }
 
 void RR()
@@ -1059,6 +1117,24 @@ void RR()
 	SETFC(*reg.r[opcode.z] & 1);
 }
 
+void RR_HL()
+{
+	Byte val = rb(reg.HL);
+	val >>= 1;
+
+	if (ISFC)
+	{
+		val |= 0x80;
+	}
+
+	SETFZ(!val);
+	SETFN(0);
+	SETFH(0);
+	SETFC(val & 1);
+
+	wb(reg.HL, val);
+}
+
 void SLA()
 {
 	SETFN(0);
@@ -1069,13 +1145,62 @@ void SLA()
 	SETFZ(!*reg.r[opcode.z]);
 }
 
+void SLA_HL()
+{
+	Byte val = rb(reg.HL);
+
+	SETFN(0);
+	SETFH(0);
+	SETFC(val & 0x80);
+
+	val <<= 1;
+	SETFZ(!val);
+
+	wb(reg.HL, val);
+}
+
+void SRA()
+{
+	SETFC(*reg.r[opcode.z] & 1);
+	*reg.r[opcode.z] = (*reg.r[opcode.z] & 0x80) | (*reg.r[opcode.z] >> 1);
+	SETFZ(!*reg.r[opcode.z]);
+	SETFN(0);
+	SETFH(0);
+}
+
+void SRA_HL()
+{
+	Byte val = rb(reg.HL);
+
+	SETFC(val & 1);
+	val = (val & 0x80) | (val >> 1);
+	SETFZ(!val);
+	SETFN(0);
+	SETFH(0);
+
+	wb(reg.HL, val);
+}
+
 void SWAP()
 {
-	*reg.r[opcode.z] = ((*reg.r[opcode.z] & 0xF) << 4) | ((*reg.r[opcode.z] & 0xF0) >> 4);
-	SETFZ(*reg.r[opcode.z]);
+	Byte val = *reg.r[opcode.z];
+	*reg.r[opcode.z] = (val >> 4) | (val << 4);
+	SETFZ(!val);
 	SETFN(0);
 	SETFH(0);
 	SETFC(0);
+}
+
+void SWAP_HL()
+{
+	Byte val = rb(reg.HL);
+	val = (val >> 4) | (val << 4);
+	SETFZ(!val);
+	SETFN(0);
+	SETFH(0);
+	SETFC(0);
+
+	wb(reg.HL, val);
 }
 
 void SRL()

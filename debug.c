@@ -73,7 +73,8 @@ void printCpu(char end)
 
 void printRegs(char end)
 {
-	printf("| A=%02X F=%02X B=%02X C=%02X D=%02X E=%02X H=%02X L=%02X (HL)=%02X PC=%04X SP=%04X (SP)=%02X%c", reg.A, reg.F, reg.B, reg.C, reg.D, reg.E, reg.H, reg.L, rb(reg.HL), reg.PC, reg.SP, rb(reg.SP), end);
+	//printf("| A=%02X F=%02X B=%02X C=%02X D=%02X E=%02X H=%02X L=%02X (HL)=%02X SP=%04X (SP)=%02X%c", reg.A, reg.F, reg.B, reg.C, reg.D, reg.E, reg.H, reg.L, rb(reg.HL), reg.SP, rb(reg.SP), end);
+	printf("| AF=%04X BC=%04X DE=%04X HL=%04X (HL)=%02X SP=%04X (SP)=%02X%c", reg.AF, reg.BC, reg.DE, reg.HL, rb(reg.HL), reg.SP, rb(reg.SP), end);
 }
 
 void printInt(char end)

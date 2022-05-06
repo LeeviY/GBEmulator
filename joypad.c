@@ -3,14 +3,14 @@
 
 enum JoypadKey
 {
-	RIGHT	= 0b00000001,
-	LEFT	= 0b00000010,
-	UP		= 0b00000100,
-	DOWN	= 0b00001000,
-	A		= 0b00010000,
-	B		= 0b00100000,
-	SELECT	= 0b01000000,
-	START	= 0b10000000,
+	RIGHT	= 1 << 0,
+	LEFT	= 1 << 1,
+	UP		= 1 << 2,
+	DOWN	= 1 << 3,
+	A		= 1 << 4,
+	B		= 1 << 5,
+	SELECT	= 1 << 6,
+	START	= 1 << 7,
 };
 
 struct Joypad joypad =

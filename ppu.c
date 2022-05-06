@@ -286,7 +286,6 @@ void drawObjects(Byte* scanPriority)
 		Byte objTile = _oam[i + 2] & (ppu.lcdc & LCDC_OBJSIZE ? 0xFE : 0xFF);
 		Byte objAttr = _oam[i + 3];
 
-
 		if ((objY <= 0xFF - objectSize + 1 && ly < objY) || ly > objY + objectSize - 1)
 		{
 			continue;
@@ -301,7 +300,6 @@ void drawObjects(Byte* scanPriority)
 		{
 			continue;
 		}
-
 
 		Byte tileY = objAttr & OBJ_YFLIP ? objectSize - 1 - (ly - objY) : ly - objY;
 

@@ -189,10 +189,17 @@ void RST();
 void RLC();
 void RLC_HL();
 void RRC();
+void RRC_HL();
 void RL();
+void RL_HL();
 void RR();
+void RR_HL();
 void SLA();
+void SLA_HL();
+void SRA();
+void SRA_HL();
 void SWAP();
+void SWAP_HL();
 void SRL();
 void SRL_HL();
 // x == 1

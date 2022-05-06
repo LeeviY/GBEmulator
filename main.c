@@ -50,7 +50,7 @@ void drawMemory()
 // Draws tilemap
 void drawTileMap()
 {
-	Byte data[192 * 128][3] = { 0 };
+	static Byte data[192 * 128][3] = { 0 };
 
 	for (int y = 0; y < 192; ++y)
 	{
@@ -146,7 +146,7 @@ void keyInputHandlerUp(Byte key, int x, int y)
 static int remain = 0;
 void cycleCpu(int a)
 {
-	glutTimerFunc(17, cycleCpu, 0);
+	glutTimerFunc(16, cycleCpu, 0);
 	int i = remain;
 	for (;i < 70224;i += cpu.clock)
 	{
@@ -176,11 +176,21 @@ int main(int argc, char** argv)
 	//loadRom("cpu_instrs/individual/11-op a,(hl)");
 
 	//loadRom("instr_timing/instr_timing");
-	//loadRom("dmg-acid2");
+	//loadRom("dmg-acid2");									// pass
 	
-	//loadRom("Tetris");
+	//loadRom("mts/acceptance/bits/reg_f");					// pass
+	//loadRom("mts/acceptance/boot_regs-dmgABC");			// pass
+	//loadRom("mts/acceptance/instr/daa");					// pass
+	//loadRom("mts/acceptance/halt_ime0_ei");				// pass
+	//loadRom("mts/acceptance/halt_ime1_timing");			// pass
+	//loadRom("mts/acceptance/ei_sequence");
+	//loadRom("mts/acceptance/if_ie_registers");
+
+	
+
+	loadRom("Tetris");
 	//loadRom("Dr_Mario");
-	loadRom("Alleyway");
+	//loadRom("Alleyway");
 	//loadRom("Legend of Zelda");
 	//loadRom("Pokemon_Red");
 
