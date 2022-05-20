@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <sys/timeb.h>
 #include <windows.h>
 #include <GL/glut.h>
 #include <SFML/Graphics.h>
@@ -13,14 +14,12 @@
 
 typedef unsigned char Byte;
 
-// Tilemap
-//const unsigned int width = 16 * 8, height = 24 * 8;
-
 // Framebuffer
 unsigned int width = 160, height = 144;
-//unsigned int width = 256, height = 256;
 const int scale = 4;
-int displayMode = 0;
+
+static int fps = 60;
+static int displayMode = 0;
 
 static time_t begin = 0;
 
@@ -32,10 +31,6 @@ void drawFrameBuffer()
 	glPixelZoom(scale, -scale);
 	glDrawPixels(width, height, GL_RGB, GL_UNSIGNED_BYTE, frameBuffer);
 	glutSwapBuffers();
-
-	//printf("%d\n", 17 - (time(NULL) - begin));
-	//Sleep(17 - ((time(NULL) - begin) % 17));
-	//begin = time();
 }
 
 void drawMemory()
@@ -76,6 +71,11 @@ void drawTileMap()
 void reDisplay()
 {
 	glutPostRedisplay();
+
+	while (clock(NULL) % (1000 / fps) != 0)
+	{
+
+	}
 }
 
 // Swaps between drawing from framebuffer and tilemap
@@ -103,6 +103,26 @@ void keyInputHandler(Byte key, int x, int y)
 {
 	//printf("%c\n", key);
 
+	/*
+	* esc - exit
+	* space - display cursor coordinates
+	* s - step debugger
+	* e - debugger on
+	* d - debugger off
+	* r - print instructions
+	* f - swap between display and tilemap
+	* t - double speed toggle
+	* 
+	* y - up
+	* h - down
+	* g - left
+	* j - right
+	* l - a
+	* p - b
+	* m - select
+	* , - start
+	*/
+
 	switch (key) 
 	{
 	case 27:
@@ -110,7 +130,11 @@ void keyInputHandler(Byte key, int x, int y)
 		glutDestroyWindow("GameBoy");
 		break;
 	case ' ':
-		printf("%d %d %d %d %X\n", x / 4, y / 4, x / 4 / 8, y / 4 / 8, (y / 4 / 8) * 16 + x / 4 / 8);
+	{
+		int rx = x / scale;
+		int ry = y / scale;
+		printf("x=%3d y=%3d tileX=%2d tileY=%2d tileNum=0x%03X\n", rx, ry, rx / 8, ry / 8, (ry / 8) * 16 + rx / 8);
+	}	
 		break;
 	case 's':
 		debugStop = 0;
@@ -128,6 +152,11 @@ void keyInputHandler(Byte key, int x, int y)
 	case 'f':
 		swapDisplayMode();
 		break;
+	case 't':
+		if (fps == 60)
+			fps = 120;
+		else
+			fps = 60;
 	default:
 		inputKeyDown(key);
 		break;
@@ -162,18 +191,19 @@ int main(int argc, char** argv)
 	// Set cpu states
 	initCpu();
 
-	loadBootstrap("dmg_boot.bin");
-	//loadRom("cpu_instrs/individual/01-special");	//*
+	//loadRom("cpu_instrs/individual/01-special");
 	//loadRom("cpu_instrs/individual/02-interrupts");
 	//loadRom("cpu_instrs/individual/03-op sp,hl");
-	//loadRom("cpu_instrs/individual/04-op r,imm");	//*
-	//loadRom("cpu_instrs/individual/05-op rp");	//*
+	//loadRom("cpu_instrs/individual/04-op r,imm");
+	//loadRom("cpu_instrs/individual/05-op rp");
 	//loadRom("cpu_instrs/individual/06-ld r,r");
 	//loadRom("cpu_instrs/individual/07-jr,jp,call,ret,rst");
-	//loadRom("cpu_instrs/individual/08-misc instrs");	//*
-	//loadRom("cpu_instrs/individual/09-op r,r");	//*
-	//loadRom("cpu_instrs/individual/10-bit ops"); //*
+	//loadRom("cpu_instrs/individual/08-misc instrs");
+	//loadRom("cpu_instrs/individual/09-op r,r");
+	//loadRom("cpu_instrs/individual/10-bit ops");
 	//loadRom("cpu_instrs/individual/11-op a,(hl)");
+
+	//loadRom("cpu_instrs/cpu_instrs");
 
 	//loadRom("instr_timing/instr_timing");
 	//loadRom("dmg-acid2");									// pass
@@ -183,16 +213,26 @@ int main(int argc, char** argv)
 	//loadRom("mts/acceptance/instr/daa");					// pass
 	//loadRom("mts/acceptance/halt_ime0_ei");				// pass
 	//loadRom("mts/acceptance/halt_ime1_timing");			// pass
-	//loadRom("mts/acceptance/ei_sequence");
-	//loadRom("mts/acceptance/if_ie_registers");
+	//loadRom("mts/acceptance/if_ie_registers");			// pass
+	//loadRom("mts/acceptance/ei_sequence");				// pass
+	//loadRom("mts/acceptance/ei_timing");					// pass
 
-	
+	//loadRom("mts/acceptance/ppu/intr_2_0_timing");
+	//loadRom("mts/acceptance/ppu/intr_2_mode0_timing");
 
-	loadRom("Tetris");
+	//loadRom("mts/acceptance/oam_dma/reg_read");
+
+	//loadRom("mts/acceptance/boot_hwio-dmgABCmgb");
+	//loadRom("mts/acceptance/timer/tim00");
+	//loadRom("mts/acceptance/ppu/intr_2_0_timing");
+
+	//loadRom("Tetris");
 	//loadRom("Dr_Mario");
 	//loadRom("Alleyway");
 	//loadRom("Legend of Zelda");
 	//loadRom("Pokemon_Red");
+
+	loadBootstrap("dmg_boot.bin");
 
 	// glut window setup
 	glutInit(&argc, argv);
@@ -200,20 +240,18 @@ int main(int argc, char** argv)
 	glutInitWindowSize(width * scale, height * scale);
 	glutCreateWindow("GameBoy");
 	glClearColor(0, 0, 0, 1);
-	glutSetKeyRepeat(GLUT_KEY_REPEAT_OFF);
+	//glutSetKeyRepeat(GLUT_KEY_REPEAT_OFF);
 
 	// Set glut event callback functions
-	//glutIdleFunc(stepCpu);
+	glutIdleFunc(stepCpu);
 	glutDisplayFunc(drawFrameBuffer);
 	//glutDisplayFunc(drawMemory);
 	glutKeyboardFunc(keyInputHandler);
 	glutKeyboardUpFunc(keyInputHandlerUp);
-	glutTimerFunc(0, cycleCpu, 0);
+	//glutTimerFunc(0, cycleCpu, 0);
 
 	// Start with tilemap
 	//swapDisplayMode();
-
-	//begin = time(NULL);
 
 	glutMainLoop();
 

@@ -10,39 +10,35 @@ Byte objPalette[2][4] = { 0 };
 Byte tiles[384][8][8] = { 0 };
 Byte frameBuffer[160 * 144][3] = { 0 };
 
-
 void resetPpu()
 {
 	ppu.clock = 0;
-	ppu.mode = PPU_MODE_HBLANK;
-	ppu.lcdc = 0;
-	ppu.scx = 0;
-	ppu.scy = 0;
-	ppu.ly = 0;
-	ppu.lyc = 0;
-	ppu.lyWin = 0;
-	ppu.wy = 0;
-	ppu.wx = 0;
+	ppu.mode = PPU_MODE_OAM;
 
-	for (int i = 0; i < 4; ++i)
+	/*for (int i = 0; i < 4; ++i)
 	{
 		bgPalette[i] = i;
 		objPalette[0][i] = i;
 		objPalette[1][i] = i;
+	}*/
+}
+
+void changeMode(int mode)
+{
+	ppu.mode = mode;
+	ppu.stat = (ppu.stat & 0xFC) | mode;
+
+	//ppu.clock += 4;
+
+	if (ppu.stat & (1 << mode + 3) && mode != 3)
+	{
+		interrupt.flags |= INT_LCD_STAT;
 	}
 }
 
-static int multiplier = 4;
-
 void stepPpu()
 {
-	if (!(ppu.lcdc & LCDC_ENABLE))
-	{
-		//printf("Disable\n");
-		return;
-	}
-
-	if (cpu.clock == 0)
+	if (!(ppu.lcdc & LCDC_ENABLE) || cpu.clock == 0)
 	{
 		return;
 	}
@@ -52,56 +48,41 @@ void stepPpu()
 	switch (ppu.mode)
 	{
 	case PPU_MODE_OAM:
-		if (ppu.clock >= 20 * multiplier)
+		if (ppu.clock >= 80)
 		{
-			ppu.mode = PPU_MODE_VRAM;
-			ppu.stat |= PPU_MODE_VRAM;
-
-			ppu.clock -= 20 * multiplier;
+			changeMode(PPU_MODE_VRAM);
+			ppu.clock -= 80;
 		}
 		break;
 
 	case PPU_MODE_VRAM:
-		if (ppu.clock >= 36 * multiplier)
+		if (ppu.clock >= 172)
 		{
-			Byte scan[160];
+			static Byte scan[160];
 			drawLine(scan);
 			drawObjects(scan);
 
-			ppu.mode = PPU_MODE_HBLANK;
-
-			if (ppu.stat & STAT_HBLANK_ENABLE)
-			{
-				interrupt.flags |= INT_LCD_STAT;
-			}
-			ppu.clock -= 36 * multiplier;
+			changeMode(PPU_MODE_HBLANK);
+			ppu.clock -= 172;
 		}
 		break;
 
 	case PPU_MODE_HBLANK:
-		if (ppu.clock >= 51 * multiplier)
+		if (ppu.clock >= 204)
 		{
+			// Check for end of drawing
 			if (ppu.ly++ == 143)
 			{
 				reDisplay();
 				interrupt.flags |= INT_VBLANK;
 
-				ppu.mode = PPU_MODE_VBLANK;
-
-				if (ppu.stat & STAT_VBLANK_ENABLE)
-				{
-					interrupt.flags |= INT_LCD_STAT;
-				}
+				changeMode(PPU_MODE_VBLANK);
 			}
-			else
+			else // Start new line
 			{
-				ppu.mode = PPU_MODE_OAM;
-
-				if (ppu.stat & STAT_OAM_ENABLE)
-				{
-					interrupt.flags |= INT_LCD_STAT;
-				}
+				changeMode(PPU_MODE_OAM);
 			}
+			// Check if stat ly flag needs to be set
 			if (ppu.ly == ppu.lyc)
 			{
 				ppu.stat |= STAT_LY_FLAG;
@@ -115,32 +96,20 @@ void stepPpu()
 				ppu.stat &= ~STAT_LY_FLAG;
 			}
 
-			ppu.clock -= 51 * multiplier;
+			ppu.clock -= 204;
 		}
 		break;
 
 	case PPU_MODE_VBLANK:
-		if (ppu.clock >= 114 * multiplier)
+		if (ppu.clock >= 456)
 		{
-			ppu.ly++;
-
-			if (ppu.ly > 153)
+			// Check for end of frame
+			if (++ppu.ly > 153)
 			{
-				ppu.mode = PPU_MODE_OAM;
-
-				if (ppu.stat & STAT_OAM_ENABLE)
-				{
-					interrupt.flags |= INT_LCD_STAT;
-				}
+				changeMode(PPU_MODE_OAM);
 				ppu.ly = 0;
 			}
-
-			if (ppu.stat & STAT_LY_ENABLE && ppu.ly == ppu.lyc)
-			{
-				interrupt.flags |= INT_LCD_STAT;
-			}
-
-			ppu.clock -= 114 * multiplier;
+			ppu.clock -= 456;
 		}
 		break;
 	}
@@ -219,12 +188,6 @@ void drawLine(Byte* scanPriority)
 			color = bgPalette[color];
 
 			frameBufferSetColor(color, x);
-			/*if (x % 8 == 0)
-			{
-				frameBuffer[ly * 160 + x][0] = 0;
-				frameBuffer[ly * 160 + x][1] = 255;
-				frameBuffer[ly * 160 + x][2] = 0;
-			}*/
 		}
 		else if (ppu.lcdc & LCDC_BGENABLE)
 		{
@@ -240,22 +203,10 @@ void drawLine(Byte* scanPriority)
 			color = bgPalette[color];
 
 			frameBufferSetColor(color, x);
-			/*if (x % 8 == 0)
-			{
-				frameBuffer[ly * 160 + x][0] = 255;
-				frameBuffer[ly * 160 + x][1] = 0;
-				frameBuffer[ly * 160 + x][2] = 0;
-			}*/
 		}
 		else
 		{
 			frameBufferSetColor(palette[0], x);
-			/*if (x % 8 == 0)
-			{
-				frameBuffer[ly * 160 + x][0] = 0;
-				frameBuffer[ly * 160 + x][1] = 0;
-				frameBuffer[ly * 160 + x][2] = 255;
-			}*/
 		}
 	}
 
@@ -327,12 +278,6 @@ void drawObjects(Byte* scanPriority)
 					}
 				}
 			}
-			/*if (x % 8 == 0)
-			{
-				frameBuffer[ly * 160 + objX + x][0] = 255;
-				frameBuffer[ly * 160 + objX + x][1] = 0;
-				frameBuffer[ly * 160 + objX + x][2] = 255;
-			}*/
 		}
 	}
 }

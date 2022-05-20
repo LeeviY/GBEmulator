@@ -64,4 +64,8 @@ struct Registers
 	Word* rp[4];
 	Word* rp2[4];
 
+	//Byte* (*r[8])();
+
 } extern reg;
+
+void initRegs();

@@ -15,58 +15,58 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="main.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="cpu.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="memory.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="registers.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="tables.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="debug.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="ppu.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="joypad.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="timer.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
+    <ClInclude Include="include\cpu.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\debug.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\joypad.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\memory.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ppu.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\registers.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\tables.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\timer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="cpu.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="memory.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="registers.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="tables.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="debug.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="ppu.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="joypad.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="timer.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
+    <ClCompile Include="source\cpu.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="source\debug.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="source\joypad.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="source\main.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="source\memory.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="source\ppu.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="source\registers.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="source\tables.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="source\timer.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

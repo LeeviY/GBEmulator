@@ -2,14 +2,18 @@ typedef unsigned char Byte;
 
 struct Timer
 {
-	Byte div;
 	Byte tima;
 	Byte tma;
 	Byte tac;
-	unsigned long divClock;
-	unsigned long divClockMod;
-	unsigned long tmaClock;
-	unsigned long tmaClockMod;
+	union
+	{
+		struct
+		{
+			Byte lowerDiv;
+			Byte div;
+		};
+		Word clock;
+	};
 } extern timer;
 
 extern unsigned int timerModulo[4];

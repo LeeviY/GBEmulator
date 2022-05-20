@@ -3,10 +3,12 @@
 #include "registers.h"
 #include "ppu.h"
 #include "tables.h"
+#include "timer.h"
 
 int debugStop = 0;
 int debugEnable = 0;
 int debugPrint = 0;
+static int count = 0;
 
 void debugOn(int breakPoint)
 {
@@ -21,6 +23,7 @@ void debugOn(int breakPoint)
 	}
 	debugEnable = 1;
 	debugStop = 1;
+	count = 0;
 }
 
 void debugOff()
@@ -43,10 +46,10 @@ void printToggle()
 	}
 }
 
-void printCpu(char end)
+void printCpu(char sep, char end)
 {
 	Byte op = rb(reg.PC);
-	printf("0x%04X | OPC=0x%02X \"", reg.PC, op);
+	printf("0x%04X %c OPC=0x%02X \"", reg.PC, sep, op);
 	int count = 0;
 	if (cpu.prefix)
 	{
@@ -67,24 +70,31 @@ void printCpu(char end)
 			break;
 		}
 	}
-	printf("\"%*c%c", 24 - count, ' ', end);
-	//printf("x=%d z=%d y=%d q=%d p=%d ", opcode.x, opcode.z, opcode.y, opcode.q, opcode.p);
+	printf("\"%*c%c", 22 - count, ' ', end);
+	//printf("x=%d z=%d y=%d q=%d p=%d ", opc.x, opc.z, opc.y, opc.q, opc.p);
 }
 
-void printRegs(char end)
+void printRegs(char sep, char end)
 {
 	//printf("| A=%02X F=%02X B=%02X C=%02X D=%02X E=%02X H=%02X L=%02X (HL)=%02X SP=%04X (SP)=%02X%c", reg.A, reg.F, reg.B, reg.C, reg.D, reg.E, reg.H, reg.L, rb(reg.HL), reg.SP, rb(reg.SP), end);
-	printf("| AF=%04X BC=%04X DE=%04X HL=%04X (HL)=%02X SP=%04X (SP)=%02X%c", reg.AF, reg.BC, reg.DE, reg.HL, rb(reg.HL), reg.SP, rb(reg.SP), end);
+	printf("%c AF=%04X BC=%04X DE=%04X HL=%04X (HL)=%02X SP=%04X (SP)=%02X%c", sep, reg.AF, reg.BC, reg.DE, reg.HL, rb(reg.HL), reg.SP, rb(reg.SP), end);
 }
 
-void printInt(char end)
+void printInt(char sep, char end)
 {
-	printf("| IM=%02x IE=%02x IF=%02x clk=%2d %c", interrupt.master, interrupt.enable, interrupt.flags, cpu.clock, end);
+	printf("%c IM=%02X IE=%02X IF=%02X clk=%2d %c", sep, interrupt.master, interrupt.enable, interrupt.flags, cpu.clock, end);
 }
 
-void printPpu(char end)
+void printPpu(char sep, char end)
 {
-	printf("| gpu clock=%3d mode=%d ly=%3d stat=%02X%c", ppu.clock, ppu.mode, ppu.ly, ppu.stat & 0xFC | ppu.mode, end);
+	static int timings[4] = { 204, 465, 80, 172 };
+	int remain = timings[ppu.mode] / 2 - (ppu.clock + cpu.clock) / 2;
+	printf("%c lcdc=%02X stat=%02X mode=%d ly=%02X rmn=%3d%c", sep, ppu.lcdc, ppu.stat, ppu.mode, ppu.ly, remain, end);
+}
+
+void printTimer(char sep, char end)
+{
+	printf("%c div=%2X tima=%2X tma=%2X tac=%2X%c", sep, timer.div, timer.tima, timer.tma, timer.tac, end);
 }
 
 void printUniquePCs()
@@ -100,7 +110,7 @@ void printUniquePCs()
 		else if (seenPCs[i] == 0)
 		{
 			seenPCs[i] = reg.PC;
-			printCpu('\n');
+			printCpu('|', '\n');
 			break;
 		}
 	}

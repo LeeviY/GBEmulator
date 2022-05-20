@@ -3,14 +3,16 @@
 typedef unsigned char Byte;
 typedef unsigned short Word;
 
-extern Byte _bios[0x100];
-extern Byte _rom[0x8000];	// Rom0 and 1
-extern Byte _oam[0x100];	// Object Attribute Memory
-extern Byte _vram[0x2000];	// Video ram
-extern Byte _wram[0x2000];	// Working ram
-extern Byte _eram[0x2000];	// Echo ram
-extern Byte _io[0x100];		// IO
-extern Byte _zram[0x80];	// Zero page
+extern Byte _romStart[0x100];
+
+extern Byte _rom[0x8000];
+extern Byte _vram[0x2000];
+extern Byte _eram[0x2000];
+extern Byte _wram[0x2000];
+extern Byte _sram[0x1E00];
+extern Byte _oam[0xA0];
+extern Byte _io[0x80];
+extern Byte _hram[0x80];
 
 extern Byte memoryMap[0xFFFF][3];
 
@@ -21,6 +23,11 @@ void loadBootstrap(char* fileName);
 
 // Loads rom from file to _rom
 void loadRom(char* fileName);
+
+void resetMemory();
+
+// Writes entire gb memory to file
+void memoryDump();
 
 void copyDma(Word destination, Word source, size_t length);
 

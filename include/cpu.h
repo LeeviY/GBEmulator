@@ -35,12 +35,11 @@ enum
 
 enum
 {
-	INT_VBLANK = 1,
+	INT_VBLANK	 = (1 << 0),
 	INT_LCD_STAT = (1 << 1),
-	INT_TIMER = (1 << 2),
-	INT_SERIAL = (1 << 3),
-	INT_JOYPAD = (1 << 4),
-
+	INT_TIMER	 = (1 << 2),
+	INT_SERIAL	 = (1 << 3),
+	INT_JOYPAD	 = (1 << 4),
 };
 
 // Stores function pointers to cpu operations
@@ -69,6 +68,8 @@ struct Cpu
 {
 	unsigned long clock;
 	int stopped;
+	int halted;
+	int toggleIntMaster; // first bit new int master value, last bit is change enable
 	Byte prefix;
 } extern cpu;
 
@@ -89,8 +90,7 @@ void initCpu();
 // Reset registers
 void resetCpu();
 
-// Writes entire gb memory to file
-void memoryDump();
+extern unsigned int cpuclock;
 
 // Step cpu one tick
 void stepCpu();
@@ -129,6 +129,7 @@ void RRA();
 void DAA();
 void CPL();
 void SCF();
+void CCF();
 // x == 1
 void LD();
 void LD_r_HL();

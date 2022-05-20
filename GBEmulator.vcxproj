@@ -18,6 +18,27 @@
       <Platform>x64</Platform>
     </ProjectConfiguration>
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="include\cpu.h" />
+    <ClInclude Include="include\debug.h" />
+    <ClInclude Include="include\joypad.h" />
+    <ClInclude Include="include\memory.h" />
+    <ClInclude Include="include\ppu.h" />
+    <ClInclude Include="include\registers.h" />
+    <ClInclude Include="include\tables.h" />
+    <ClInclude Include="include\timer.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="source\cpu.c" />
+    <ClCompile Include="source\debug.c" />
+    <ClCompile Include="source\joypad.c" />
+    <ClCompile Include="source\main.c" />
+    <ClCompile Include="source\memory.c" />
+    <ClCompile Include="source\ppu.c" />
+    <ClCompile Include="source\registers.c" />
+    <ClCompile Include="source\tables.c" />
+    <ClCompile Include="source\timer.c" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
@@ -116,7 +137,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir)freeglut\include;$(SolutionDir)glut\include;$(SolutionDir)SFML\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\Leevi\source\repos\GBEmulator\GBEmulator\include;$(SolutionDir)freeglut\include;$(SolutionDir)glut\include;$(SolutionDir)SFML\include</AdditionalIncludeDirectories>
       <LanguageStandard_C>Default</LanguageStandard_C>
     </ClCompile>
     <Link>
@@ -146,27 +167,6 @@
       <AdditionalDependencies>freeglut.lib;winmm.lib;opengl32.lib;csfml-graphics.lib;csfml-window.lib;csfml-system.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
-  <ItemGroup>
-    <ClCompile Include="cpu.c" />
-    <ClCompile Include="debug.c" />
-    <ClCompile Include="joypad.c" />
-    <ClCompile Include="main.c" />
-    <ClCompile Include="memory.c" />
-    <ClCompile Include="ppu.c" />
-    <ClCompile Include="registers.c" />
-    <ClCompile Include="tables.c" />
-    <ClCompile Include="timer.c" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="cpu.h" />
-    <ClInclude Include="debug.h" />
-    <ClInclude Include="joypad.h" />
-    <ClInclude Include="memory.h" />
-    <ClInclude Include="ppu.h" />
-    <ClInclude Include="registers.h" />
-    <ClInclude Include="tables.h" />
-    <ClInclude Include="timer.h" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

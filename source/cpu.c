@@ -20,7 +20,7 @@ struct OpcodeTable opcodeTable =
 		JR_cc_n,	LD_rp_nn,	LDI_HL_A,	INC_rp,		INC,		DEC,		LD_n,		DAA,
 		JR_cc_n,	ADD_HL_rp,	LDI_A_HL,	DEC_rp,		INC,		DEC,		LD_n,		CPL,
 		JR_cc_n,	LD_rp_nn,	LDD_HL_A,	INC_rp,		INC_HL,		DEC_HL,		LD_HL_n,	SCF,
-		JR_cc_n,	ADD_HL_rp,	LDD_A_HL,	DEC_rp,		INC,		DEC,		LD_n,		63,
+		JR_cc_n,	ADD_HL_rp,	LDD_A_HL,	DEC_rp,		INC,		DEC,		LD_n,		CCF,
 
 		LD,			LD,			LD,			LD,			LD,			LD,			LD_r_HL,	LD,
 		LD,			LD,			LD,			LD,			LD,			LD,			LD_r_HL,	LD,
@@ -74,7 +74,7 @@ struct OpcodeTable opcodeTable =
 	}
 };
 
-struct OpCode opcode;
+struct OpCode opc;
 
 struct Cpu cpu;
 
@@ -91,23 +91,7 @@ void parseOpCode(struct OpCode* opCode, int hex)
 
 void initCpu()
 {
-	// Init reference registers
-	reg.r[0] = &reg.B;
-	reg.r[1] = &reg.C;
-	reg.r[2] = &reg.D;
-	reg.r[3] = &reg.E;
-	reg.r[4] = &reg.H;
-	reg.r[5] = &reg.L;
-	reg.r[6] = &reg.F;// Not used should be (HL), set to F for reset
-	reg.r[7] = &reg.A;
-
-	// Set references for register index arrays
-	reg.rp[0] = reg.rp2[0] = &reg.BC;	// BC
-	reg.rp[1] = reg.rp2[1] = &reg.DE;	// DE
-	reg.rp[2] = reg.rp2[2] = &reg.HL;	// HL
-	reg.rp[3] = &reg.SP;				// SP
-	reg.rp2[3] = &reg.AF;				// AF
-
+	initRegs();
 	resetCpu();
 }
 
@@ -120,45 +104,25 @@ void resetCpu()
 	reg.SP = 0;
 	reg.PC = 0;
 
-	interrupt.master = 1;
-	interrupt.enable = 0;
-	interrupt.flags = 0;
+	interrupt.master = 0;
 
-	cpu.clock = 0;
+	cpu.clock = 4;
 	cpu.prefix = 0;
 	cpu.stopped = 0;
 
+	resetMemory();
 	resetTimer();
 	resetPpu();
 
-	/*for (int i = 0; i < 0x2000; ++i)
-	{
-		seenPCs[i] = 0x8000;
-	}*/
-}
-
-void memoryDump()
-{
-	Byte* memoryMirror = (Byte*)malloc(0x10000 * sizeof(Byte));
-
-	if (!memoryMirror)
-	{
-		return;
-	}
-
-	for (int i = 0; i < 0xFFFF + 1; ++i)
-	{
-		memoryMirror[i] = rb((Word)i);
-	}
-
-	FILE* write_ptr = fopen("test1.bin", "wb");
-	fwrite(memoryMirror, sizeof(memoryMirror), 1, write_ptr);
+	cpuclock = 4;
 }
 
 // Debugger breakpoint
-Word bp = -1;
+Word bp = 0x100;
 
 const static int multiplier = 4;
+
+unsigned int cpuclock;
 
 void stepCpu()
 {
@@ -170,32 +134,35 @@ void stepCpu()
 	{
 		debugOn(bp);
 	}
-
-	/*memoryMap[reg.PC][0] = 255;
-	memoryMap[reg.PC][1] = 0;
-	memoryMap[reg.PC][2] = 0;*/
 	//printUniquePCs();
 
 	// Get op
 	Byte op = rb(reg.PC);
 
 	// Get opcode
-	parseOpCode(&opcode, op);
-	
+	parseOpCode(&opc, op);
+
 	//printUniqueOps(op);
 
 	if (debugEnable || debugPrint)
 	{
-		printCpu(' ');
-		printRegs(' ');
-		printInt(' ');
-		printPpu('\n');
+		static char sep = '/';
+		sep = sep == '/' ? '|' : '/';
+
+		printf("%3X ", cpuclock);
+		printCpu(sep, ' ');
+		printRegs(sep, ' ');
+		printInt(sep, ' ');
+		printPpu(sep, ' ');
+		printTimer(sep, '\n');
 	}
+	
 	cpu.clock = 0;
 
-	if (reg.PC == 0x1F5)
+	// Check if ei or di queued interrupt master toggle
+	if (cpu.toggleIntMaster & 2)
 	{
-		NOP();
+		interrupt.master = cpu.toggleIntMaster & 1;
 	}
 
 	reg.PC++;
@@ -214,9 +181,13 @@ void stepCpu()
 		cpu.clock += insTicks[op];
 	}
 
+	checkInterrupt();
+	cpu.clock *= multiplier;
+
 	stepTimer();
 	stepPpu();
-	checkInterrupt();
+
+	cpuclock += cpu.clock / 2;
 
 	// Breakpoint toggle
 	if (debugEnable && !cpu.prefix)
@@ -225,56 +196,26 @@ void stepCpu()
 	}
 }
 
+void setInterrupt(int type, Byte addr)
+{
+	if ((interrupt.enable & interrupt.flags) & type)
+	{
+		interrupt.flags &= ~type;
+		interrupt.master = 0;
+		pushToStack(reg.PC);
+		reg.PC = addr;
+
+		cpu.clock += 5;
+	}
+}
+
 void checkInterrupt()
 {
 	if (interrupt.master && interrupt.enable && interrupt.flags)
 	{
-		Byte toggle = interrupt.enable & interrupt.flags;
-
-		if (toggle & INT_VBLANK)
+		for (int i = 0; i < 5; ++i)
 		{
-			interrupt.flags &= ~INT_VBLANK;
-			interrupt.master = 0;
-			pushToStack(reg.PC);
-			reg.PC = 0x40;
-
-			cpu.clock += 6 * multiplier;
-		}
-		if (toggle & INT_LCD_STAT)
-		{
-			interrupt.flags &= ~INT_LCD_STAT;
-			interrupt.master = 0;
-			pushToStack(reg.PC);
-			reg.PC = 0x48;
-
-			cpu.clock += 6 * multiplier;
-		}
-		if (toggle & INT_TIMER)
-		{
-			interrupt.flags &= ~INT_TIMER;
-			interrupt.master = 0;
-			pushToStack(reg.PC);
-			reg.PC = 0x50;
-
-			cpu.clock += 6 * multiplier;
-		}
-		if (toggle & INT_SERIAL)
-		{
-			interrupt.flags &= ~INT_SERIAL;
-			interrupt.master = 0;
-			pushToStack(reg.PC);
-			reg.PC = 0x58;
-
-			cpu.clock += 6 * multiplier;
-		}
-		if (toggle & INT_JOYPAD)
-		{
-			interrupt.flags &= ~INT_JOYPAD;
-			interrupt.master = 0;
-			pushToStack(reg.PC);
-			reg.PC = 0x60;
-
-			cpu.clock += 6 * multiplier;
+			setInterrupt(1 << i, 0x40 + i * 8);
 		}
 	}
 }
@@ -311,12 +252,12 @@ void JR_n()
 
 void JR_cc_n()
 {
-	int cc = reg.F & opcodeTable.cc[opcode.y - 4];
-	if ((opcode.y % 2 == 0 ? !cc : cc))
+	int cc = reg.F & opcodeTable.cc[opc.y - 4];
+	if ((opc.y % 2 == 0 ? !cc : cc))
 	{
 		reg.PC += (char)nextByte();
 
-		cpu.clock += 1 * multiplier;
+		cpu.clock += 1;
 	}
 	else
 	{
@@ -326,30 +267,30 @@ void JR_cc_n()
 
 void LD_rp_nn()
 {
-	*reg.rp[opcode.p] = nextWord();
+	*reg.rp[opc.p] = nextWord();
 }
 
 void ADD_HL_rp1()
 {
-	unsigned long result = reg.HL + *reg.rp[opcode.p];
+	unsigned long result = reg.HL + *reg.rp[opc.p];
 
 	SETFC(result & 0xFFFF0000);
 
 	reg.HL = (unsigned short)(result & 0xFFFF);
 
 	SETFN(0);
-	SETFH(((reg.HL & 0x0F) + (*reg.rp[opcode.p] & 0x0F)) > 0x0F);
+	SETFH(((reg.HL & 0x0F) + (*reg.rp[opc.p] & 0x0F)) > 0x0F);
 
 	printf("%4X %2X\n", reg.HL, reg.F);
 }
 
 void ADD_HL_rp()
 {
-	Word result = reg.HL + *reg.rp[opcode.p];
+	Word result = reg.HL + *reg.rp[opc.p];
 
 	SETFC(reg.HL > 0xFFFF - result);
 	SETFN(0);
-	SETFH(((reg.HL & 0xFFF) + (*reg.rp[opcode.p] & 0xFFF)) > 0xFFF);
+	SETFH(((reg.HL & 0xFFF) + (*reg.rp[opc.p] & 0xFFF)) > 0xFFF);
 	reg.HL = result;
 
 	//printf("%4X %2X\n", reg.HL, reg.F);
@@ -357,7 +298,7 @@ void ADD_HL_rp()
 
 void LD_rpi_A()
 {
-	wb(*reg.rp[opcode.p], reg.A);
+	wb(*reg.rp[opc.p], reg.A);
 }
 
 void LDI_HL_A()
@@ -372,7 +313,7 @@ void LDD_HL_A()
 
 void LD_A_rpi()
 {
-	reg.A = rb(*reg.rp[opcode.p]);
+	reg.A = rb(*reg.rp[opc.p]);
 }
 
 void LDI_A_HL()
@@ -387,21 +328,21 @@ void LDD_A_HL()
 
 void INC_rp()
 {
-	++*reg.rp[opcode.p];
+	++*reg.rp[opc.p];
 }
 
 void DEC_rp()
 {
-	--*reg.rp[opcode.p];
+	--*reg.rp[opc.p];
 }
 
 void INC()
 {
 	SETFN(0);
-	SETFH((*reg.r[opcode.y] & 0x0F) + 1 > 0x0F);
+	SETFH((*reg.r[opc.y] & 0x0F) + 1 > 0x0F);
 	
-	++*reg.r[opcode.y];
-	SETFZ(!*reg.r[opcode.y]);
+	++*reg.r[opc.y];
+	SETFZ(!*reg.r[opc.y]);
 }
 
 void INC_HL()
@@ -411,16 +352,16 @@ void INC_HL()
 	SETFH((val & 0x0F) + 1 > 0x0F);
 
 	wb(reg.HL, val + 1);
-	SETFZ(!*reg.r[opcode.y]);
+	SETFZ(!*reg.r[opc.y]);
 }
 
 void DEC()
 {	
 	SETFN(1);
-	SETFH(!(*reg.r[opcode.y] & 0x0F));
+	SETFH(!(*reg.r[opc.y] & 0x0F));
 
-	--*reg.r[opcode.y];
-	SETFZ(!*reg.r[opcode.y]);
+	--*reg.r[opc.y];
+	SETFZ(!*reg.r[opc.y]);
 }
 
 void DEC_HL()
@@ -430,12 +371,12 @@ void DEC_HL()
 	SETFH(!(val & 0x0F));
 
 	wb(reg.HL, val - 1);
-	SETFZ(!*reg.r[opcode.y]);
+	SETFZ(!*reg.r[opc.y]);
 }
 
 void LD_n()
 {
-	*reg.r[opcode.y] = nextByte();
+	*reg.r[opc.y] = nextByte();
 }
 
 void LD_HL_n()
@@ -544,27 +485,34 @@ void SCF()
 	SETFH(0);
 }
 
+void CCF()
+{
+	SETFN(0);
+	SETFH(0);
+	SETFC(!ISFC);
+}
+
 // ============================================================================
 // x == 1
 // ============================================================================
 void LD()
 {
-	*reg.r[opcode.y] = *reg.r[opcode.z];
+	*reg.r[opc.y] = *reg.r[opc.z];
 }
 
 void LD_r_HL()
 {
-	*reg.r[opcode.y] = rb(reg.HL);
+	*reg.r[opc.y] = rb(reg.HL);
 }
 
 void LD_HL_r()
 {
-	wb(reg.HL, *reg.r[opcode.z]);
+	wb(reg.HL, *reg.r[opc.z]);
 }
 
 void HALT()
 {
-	if (!interrupt.flags) 
+	if (!(interrupt.flags & 0x1F)) 
 	{
 		reg.PC--;
 	}
@@ -575,7 +523,7 @@ void HALT()
 // ============================================================================
 void ADD()
 {
-	Byte val = *reg.r[opcode.z];
+	Byte val = *reg.r[opc.z];
 	SETFC((Word)reg.A + (Word)val > 0xFF);
 	SETFH(((reg.A & 0xF) + (val & 0xF)) > 0xF);
 	SETFN(0);
@@ -597,7 +545,7 @@ void ADD_HL()
 
 void ADC()
 {
-	Byte val = *reg.r[opcode.z] + (ISFC ? 1 : 0);
+	Byte val = *reg.r[opc.z] + (ISFC ? 1 : 0);
 	unsigned int result = reg.A + val;
 
 	SETFZ(val == reg.A);
@@ -623,7 +571,7 @@ void ADC_HL()
 
 void SUB()
 {
-	Byte val = *reg.r[opcode.z];
+	Byte val = *reg.r[opc.z];
 
 	SETFN(1);
 	SETFH((val & 0x0F) > (reg.A & 0x0F));
@@ -647,7 +595,7 @@ void SUB_HL()
 
 void SBC_A()
 {
-	Byte val = *reg.r[opcode.y];
+	Byte val = *reg.r[opc.y];
 	val += ISFC ? 1 : 0;
 
 	SETFZ(val == reg.A);
@@ -673,7 +621,7 @@ void SBC_A_HL()
 
 void AND()
 {
-	reg.A &= *reg.r[opcode.z];
+	reg.A &= *reg.r[opc.z];
 
 	SETFZ(!reg.A);
 	SETFN(0);
@@ -693,7 +641,7 @@ void AND_HL()
 
 void OR()
 {
-	reg.A |= *reg.r[opcode.z];
+	reg.A |= *reg.r[opc.z];
 
 	SETFZ(!reg.A);
 	SETFN(0);
@@ -713,7 +661,7 @@ void OR_HL()
 
 void XOR()
 {
-	reg.A ^= *reg.r[opcode.z];
+	reg.A ^= *reg.r[opc.z];
 	
 	SETFZ(!reg.A);
 	SETFN(0);
@@ -733,10 +681,10 @@ void XOR_HL()
 
 void CP()
 {
-	SETFZ(reg.A == *reg.r[opcode.z]);
+	SETFZ(reg.A == *reg.r[opc.z]);
 	SETFN(1);
-	SETFH((*reg.r[opcode.z] & 0x0F) > (reg.A & 0x0F));
-	SETFC(reg.A < *reg.r[opcode.z]);
+	SETFH((*reg.r[opc.z] & 0x0F) > (reg.A & 0x0F));
+	SETFC(reg.A < *reg.r[opc.z]);
 }
 
 void CP_HL()
@@ -753,11 +701,11 @@ void CP_HL()
 // ============================================================================
 void RET_cc()
 {
-	int cc = reg.F & opcodeTable.cc[opcode.y];
-	if ((opcode.y % 2 == 0 ? !cc : cc))
+	int cc = reg.F & opcodeTable.cc[opc.y];
+	if ((opc.y % 2 == 0 ? !cc : cc))
 	{
 		reg.PC = popFromStack();
-		cpu.clock += 3 * multiplier;
+		cpu.clock += 3;
 	}
 }
 
@@ -800,8 +748,8 @@ void LD_HL_SP_n()
 
 void POP()
 {
-	*reg.rp2[opcode.p] = popFromStack();
-	if (opcode.p == 3)
+	*reg.rp2[opc.p] = popFromStack();
+	if (opc.p == 3)
 	{
 		reg.F &= 0xF0;
 	}
@@ -830,11 +778,11 @@ void LD_SP_HL()
 
 void JP_cc_nn()
 {
-	int cc = reg.F & opcodeTable.cc[opcode.y];
-	if ((opcode.y % 2 == 0 ? !cc : cc))
+	int cc = reg.F & opcodeTable.cc[opc.y];
+	if ((opc.y % 2 == 0 ? !cc : cc))
 	{
 		reg.PC = nextWord();
-		cpu.clock += 1 * multiplier;
+		cpu.clock += 1;
 	}
 	else
 	{
@@ -874,30 +822,34 @@ void PRFX()
 
 void DI()
 {
-	interrupt.master = 0;
+	cpu.toggleIntMaster = 0b10;
 }
 
 void EI()
 {
-	interrupt.master = 1;
+	cpu.toggleIntMaster = 0b11;
 }
 
 void CALL_cc()
 {
-	int cc = reg.F & opcodeTable.cc[opcode.y];
-	if ((opcode.y % 2 == 0 ? !cc : cc))
+	int cc = reg.F & opcodeTable.cc[opc.y];
+	if ((opc.y % 2 == 0 ? !cc : cc))
 	{
 		Word val = nextWord();
 		pushToStack(reg.PC);
 		reg.PC = val;
 
-		cpu.clock += 3 * multiplier;
+		cpu.clock += 3;
+	}
+	else
+	{
+		reg.PC += 2;
 	}
 }
 
 void PUSH()
 {
-	pushToStack(*reg.rp2[opcode.p]);
+	pushToStack(*reg.rp2[opc.p]);
 }
 
 void CALL()
@@ -1000,7 +952,7 @@ void CP_n()
 void RST()
 {
 	pushToStack(reg.PC);
-	reg.PC = opcode.y * 8;
+	reg.PC = opc.y * 8;
 }
 // ============================================================================
 // CB
@@ -1008,14 +960,14 @@ void RST()
 
 void RLC()
 {
-	int carry = (*reg.r[opcode.z] & 0x80);
+	int carry = (*reg.r[opc.z] & 0x80);
 	SETFC(carry);
 
 	carry >>= 7;
-	*reg.r[opcode.z] <<= 1;
-	*reg.r[opcode.z] += carry;
+	*reg.r[opc.z] <<= 1;
+	*reg.r[opc.z] += carry;
 
-	SETFZ(!*reg.r[opcode.z]);
+	SETFZ(!*reg.r[opc.z]);
 	SETFN(0);
 	SETFH(0);
 }
@@ -1039,23 +991,23 @@ void RLC_HL()
 
 void RRC()
 {
-	int carry = (*reg.r[opcode.z] & 0x01);
+	int carry = (*reg.r[opc.z] & 0x01);
 
-	*reg.r[opcode.z] >>= 1;
+	*reg.r[opc.z] >>= 1;
 
 	if (carry)
 	{
 		SETFC(1);
-		*reg.r[opcode.z] |= 0x80;
+		*reg.r[opc.z] |= 0x80;
 	}
-	SETFZ(!*reg.r[opcode.z]);
+	SETFZ(!*reg.r[opc.z]);
 	SETFN(0);
 	SETFH(0);
 }
 
 void RRC_HL()
 {
-	int carry = (*reg.r[opcode.z] & 0x01);
+	int carry = (*reg.r[opc.z] & 0x01);
 	Byte val = rb(reg.HL);
 
 	val >>= 1;
@@ -1078,11 +1030,11 @@ void RL()
 
 	SETFN(0);
 	SETFH(0);
-	SETFC(*reg.r[opcode.z] & 0x80);
+	SETFC(*reg.r[opc.z] & 0x80);
 
-	*reg.r[opcode.z] <<= 1;
-	*reg.r[opcode.z] += carry;
-	SETFZ(!*reg.r[opcode.z]);
+	*reg.r[opc.z] <<= 1;
+	*reg.r[opc.z] += carry;
+	SETFZ(!*reg.r[opc.z]);
 }
 
 void RL_HL()
@@ -1104,17 +1056,17 @@ void RL_HL()
 
 void RR()
 {
-	*reg.r[opcode.z] >>= 1;
+	*reg.r[opc.z] >>= 1;
 
 	if (ISFC)
 	{
-		*reg.r[opcode.z] |= 0x80;
+		*reg.r[opc.z] |= 0x80;
 	}
 
-	SETFZ(!*reg.r[opcode.z]);
+	SETFZ(!*reg.r[opc.z]);
 	SETFN(0);
 	SETFH(0);
-	SETFC(*reg.r[opcode.z] & 1);
+	SETFC(*reg.r[opc.z] & 1);
 }
 
 void RR_HL()
@@ -1139,10 +1091,10 @@ void SLA()
 {
 	SETFN(0);
 	SETFH(0);
-	SETFC(*reg.r[opcode.z] & 0x80);
+	SETFC(*reg.r[opc.z] & 0x80);
 
-	*reg.r[opcode.z] <<= 1;
-	SETFZ(!*reg.r[opcode.z]);
+	*reg.r[opc.z] <<= 1;
+	SETFZ(!*reg.r[opc.z]);
 }
 
 void SLA_HL()
@@ -1161,9 +1113,9 @@ void SLA_HL()
 
 void SRA()
 {
-	SETFC(*reg.r[opcode.z] & 1);
-	*reg.r[opcode.z] = (*reg.r[opcode.z] & 0x80) | (*reg.r[opcode.z] >> 1);
-	SETFZ(!*reg.r[opcode.z]);
+	SETFC(*reg.r[opc.z] & 1);
+	*reg.r[opc.z] = (*reg.r[opc.z] & 0x80) | (*reg.r[opc.z] >> 1);
+	SETFZ(!*reg.r[opc.z]);
 	SETFN(0);
 	SETFH(0);
 }
@@ -1183,8 +1135,8 @@ void SRA_HL()
 
 void SWAP()
 {
-	Byte val = *reg.r[opcode.z];
-	*reg.r[opcode.z] = (val >> 4) | (val << 4);
+	Byte val = *reg.r[opc.z];
+	*reg.r[opc.z] = (val >> 4) | (val << 4);
 	SETFZ(!val);
 	SETFN(0);
 	SETFH(0);
@@ -1205,11 +1157,11 @@ void SWAP_HL()
 
 void SRL()
 {
-	SETFC(*reg.r[opcode.z] & 0x01);
+	SETFC(*reg.r[opc.z] & 0x01);
 
-	*reg.r[opcode.z] >>= 1;
+	*reg.r[opc.z] >>= 1;
 
-	SETFZ(*reg.r[opcode.z]);
+	SETFZ(*reg.r[opc.z]);
 	SETFN(0);
 	SETFH(0);
 }
@@ -1230,34 +1182,34 @@ void SRL_HL()
 
 void BIT()
 {	
-	SETFZ(!(*reg.r[opcode.z] & (1 << opcode.y)));
+	SETFZ(!(*reg.r[opc.z] & (1 << opc.y)));
 	SETFN(0);
 	SETFH(1);
 }
 
 void BIT_HL()
 {
-	SETFZ(!(rb(reg.HL) & (1 << opcode.y)));
+	SETFZ(!(rb(reg.HL) & (1 << opc.y)));
 	SETFN(0);
 	SETFH(1);
 }
 
 void RES()
 {
-	*reg.r[opcode.z] &= ~(1 << opcode.y);
+	*reg.r[opc.z] &= ~(1 << opc.y);
 }
 
 void RES_HL()
 {
-	wb(reg.HL, rb(reg.HL) & ~(1 << opcode.y));
+	wb(reg.HL, rb(reg.HL) & ~(1 << opc.y));
 }
 
 void SET()
 {
-	*reg.r[opcode.z] |= (1 << opcode.y);
+	*reg.r[opc.z] |= (1 << opc.y);
 }
 
 void SET_HL()
 {
-	wb(reg.HL, rb(reg.HL) | (1 << opcode.y));
+	wb(reg.HL, rb(reg.HL) | (1 << opc.y));
 }
